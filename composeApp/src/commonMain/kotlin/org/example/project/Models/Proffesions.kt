@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Proffesions(
-    val idProffesion: Int = 0,
-    val nameProffesion: String,
+    val idProfession: Int = 0,
+    val nameProfession: String,
 )

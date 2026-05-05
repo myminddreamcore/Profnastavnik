@@ -174,9 +174,9 @@ class ApiClient {
             null
         }
     }
-    suspend fun getVacancy(user: Student): CardVacancy? {
+    suspend fun getVacancy(id: Int): CardVacancy? {
         return try {
-            val url = "${BASE_URL}Vacancy/GetVacancy/${user.idStudent}"
+            val url = "${BASE_URL}Vacancy/GetVacancy/${id}"
             println(url)
             val response = client.get(url)
             println(response)
@@ -227,6 +227,23 @@ class ApiClient {
     suspend fun getrejectedVacancy(user: Student): List<Listresponcies>? {
         return try {
             val url = "${BASE_URL}Responces/GetUserRejectedIntership/${user.idStudent}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Listresponcies>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getuserfavourities(user: Student): List<Listresponcies>? {
+        return try {
+            val url = "${BASE_URL}User/GetUserFaivorities/${user.idStudent}"
             println(url)
             val response = client.get(url)
             println(response)

@@ -11,24 +11,60 @@ fun App() {
     var screenState by remember { mutableStateOf(0) }
     val api = remember { ApiClient() }
     var responseType by remember { mutableStateOf("consider") }
+    var selectedVacancyId by remember { mutableStateOf(0) }
+
+    val navigationStack = remember { mutableStateListOf(0) }
+
+    fun navigateTo(state: Int) {
+        navigationStack.add(state)
+    }
+
+    fun goBack() {
+        if (navigationStack.size > 1) {
+            navigationStack.removeLast()
+        }
+    }
+
+    val currentState = navigationStack.last()
 
     val globalNavigate = { target: String ->
-        screenState = when (target) {
-            "Дашборд" -> 3
-            "Поиск" -> 7
-            "Профиль" -> 10
-            "Настройки" -> 8
-            else -> 3
+        when (target) {
+            "Дашборд" -> {
+                navigationStack.clear()
+                navigationStack.add(3)
+            }
+            "Поиск" -> {
+                navigationStack.clear()
+                navigationStack.add(7)
+            }
+            "Профиль" -> {
+                navigationStack.clear()
+                navigationStack.add(10)
+            }
+            "Настройки" -> {
+                navigationStack.clear()
+                navigationStack.add(8)
+            }
         }
     }
 
     MaterialTheme {
-        when (screenState) {
+        when (currentState) {
             0 -> MainScreen(
-                onNavigateToLogin = { screenState = 1 },
-                onNavigateToReg = { screenState = 2 }
+                onNavigateToLogin = {
+                    navigateTo(1)
+                },
+                onNavigateToReg = {
+                    navigateTo(2)
+                }
             )
-            1 -> LoginScreen(onSuccess = { screenState = 3 })
+
+            1 -> LoginScreen(
+                onSuccess = {
+                    navigateTo(3)
+                }
+            )
+
             2 -> RegistrationScreen()
 
             3 -> DashboardStudent(
@@ -36,31 +72,50 @@ fun App() {
                 onNavigate = globalNavigate,
                 onNavigateToResponses = { type ->
                     responseType = type
-                    screenState = 4
+                    navigateTo(4)
                 }
             )
 
             4 -> ResponsesScreen(
                 api = api,
                 type = responseType,
-                onBack = { screenState = 3 },
-                onNavigateToDetail = { screenState = 5 }
+                onBack = { goBack() },
+                onNavigateToDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
             )
 
             5 -> VacancyDetailScreen(
                 api = api,
                 onNavigate = globalNavigate,
-                onBack = { screenState = 3 }
+                onBack = { goBack() },
+                vacancyId = selectedVacancyId
+            )
+
+            8 -> SettingsScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToFavourites = {
+                    responseType = "favourites"
+                    navigateTo(4)
+                },
+                onLogout = {
+                    navigationStack.clear()
+                    navigationStack.add(0)
+                }
+            )
+
+            7 -> SearchScreen(
+                api = api,
+                onNavigate = globalNavigate
             )
 
             10 -> EditProfileScreen(
                 api = api,
                 onNavigate = globalNavigate,
-                onSave = { screenState = 3 }
+                onSave = { goBack() }
             )
-
-//            7 -> Box(Modifier.fillMaxSize()) { Text("Экран Поиска") }
-//            8 -> Box(Modifier.fillMaxSize()) { Text("Экран Настроек") }
         }
     }
 }

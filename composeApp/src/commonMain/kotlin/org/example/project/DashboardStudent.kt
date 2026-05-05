@@ -174,7 +174,10 @@ fun CustomBottomNavigation(
     onItemSelected: (String) -> Unit
 ) {
     Surface(
-        modifier = Modifier.padding(16.dp).fillMaxWidth().height(72.dp),
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+            .height(72.dp),
         shape = RoundedCornerShape(28.dp),
         color = Color(0xFF5399BC).copy(alpha = 0.95f)
     ) {
@@ -183,10 +186,37 @@ fun CustomBottomNavigation(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavigationItem("Дашборд", Icons.Default.Dashboard, currentScreen == "Дашборд") { onItemSelected("Дашборд") }
-            NavigationItem("Поиск", Icons.Default.Search, currentScreen == "Поиск") { onItemSelected("Поиск") }
-            NavigationItem("Профиль", Icons.Default.Person, currentScreen == "Профиль") { onItemSelected("Профиль") }
-            NavigationItem("Настройки", Icons.Default.Settings, currentScreen == "Настройки") { onItemSelected("Настройки") }
+            NavigationItem(
+                "Дашборд",
+                Icons.Default.Dashboard,
+                currentScreen == "Дашборд"
+            ) {
+                if (currentScreen != "Дашборд") onItemSelected("Дашборд")
+            }
+
+            NavigationItem(
+                "Поиск",
+                Icons.Default.Search,
+                currentScreen == "Поиск"
+            ) {
+                if (currentScreen != "Поиск") onItemSelected("Поиск")
+            }
+
+            NavigationItem(
+                "Профиль",
+                Icons.Default.Person,
+                currentScreen == "Профиль"
+            ) {
+                if (currentScreen != "Профиль") onItemSelected("Профиль")
+            }
+
+            NavigationItem(
+                "Настройки",
+                Icons.Default.Settings,
+                currentScreen == "Настройки"
+            ) {
+                if (currentScreen != "Настройки") onItemSelected("Настройки")
+            }
         }
     }
 }
