@@ -37,6 +37,7 @@ fun ResponsesScreen(
         "invited" -> "Приглашения"
         "rejected" -> "Отклоненные"
         "favourites" -> "Избранные вакансии"
+        "archive" -> "Архив стажировок"
         else -> "Вакансии"
     }
 
@@ -51,6 +52,7 @@ fun ResponsesScreen(
             "invited" -> api.getinvitedVacancy(user)
             "rejected" -> api.getrejectedVacancy(user)
             "favourites" -> api.getuserfavourities(user)
+            "archive" -> api.getUserArhciveVacancies(CurrentUser.id ?: 0)
             else -> emptyList()
         }
 

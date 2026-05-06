@@ -100,6 +100,10 @@ fun App() {
                     responseType = "favourites"
                     navigateTo(4)
                 },
+                onNavigateToArchive = {
+                    responseType = "archive"
+                    navigateTo(4)
+                },
                 onLogout = {
                     navigationStack.clear()
                     navigationStack.add(0)

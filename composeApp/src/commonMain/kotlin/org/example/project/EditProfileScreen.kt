@@ -1,10 +1,6 @@
 package org.example.project
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,21 +21,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
-import org.example.project.API.MultiSelectFieldFromApi
 import org.example.project.Models.Proffesions
 import org.example.project.Models.Skills
 import org.example.project.Models.University
 import org.example.project.Models.CurrentUser
+import org.example.project.Models.AllUserprofile
+import org.example.project.API.MultiSelectFieldFromApi
+import org.example.project.Models.Student
 
 @Composable
 fun EditProfileScreen(
     api: ApiClient,
     onNavigate: (String) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+
 ) {
     val scope = rememberCoroutineScope()
 
     var fio by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
     var course by remember { mutableStateOf("") }
     var specialty by remember { mutableStateOf("") }
@@ -48,24 +48,66 @@ fun EditProfileScreen(
     var allSkills by remember { mutableStateOf<List<Skills>>(emptyList()) }
     var allProfessions by remember { mutableStateOf<List<Proffesions>>(emptyList()) }
 
-    var isLoading by remember { mutableStateOf(true) }
-
     var selectedUniversity by remember { mutableStateOf<University?>(null) }
     val selectedSkills = remember { mutableStateListOf<Skills>() }
     val selectedProfessions = remember { mutableStateListOf<Proffesions>() }
 
+    var userProfile by remember { mutableStateOf<AllUserprofile?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         isLoading = true
-        val unis = api.getUniversity()
-        val skills = api.getSkills()
-        val profs = api.getProffesions()
+        try {
+            val userId = CurrentUser.id ?: 0
 
-        if (unis != null) universities = unis
-        if (skills != null) allSkills = skills
-        if (profs != null) allProfessions = profs
+            val unis = api.getUniversity()
+            if (unis != null) universities = unis
 
-        // TODO: Загрузить данные текущего пользователя через api.getUserProfile()
+            val skills = api.getSkills()
+            if (skills != null) allSkills = skills
 
+            val profs = api.getProffesions()
+            if (profs != null) allProfessions = profs
+
+            val profile = api.getAllUserProfile(userId)
+            if (profile != null) {
+                userProfile = profile
+
+                profile.student?.let { student ->
+                    val name = student.nameStudent ?: ""
+                    val surname = student.surnameStudent ?: ""
+                    val patronymic = student.patronymicStudent ?: ""
+                    fio = listOf(surname, name, patronymic).filter { it.isNotEmpty() }.joinToString(" ")
+                    birthDate = student.birthdayStudent ?: ""
+                    course = student.courseStudent?.toString() ?: ""
+                    specialty = student.facultatyStudent ?: ""
+                    email = student.emailStudent ?: ""
+                }
+
+                profile.university?.let { uniName ->
+                    selectedUniversity = universities.find {
+                        it.nameUniversity?.trim()?.equals(uniName.trim(), ignoreCase = true) == true
+                    }
+                }
+
+                profile.skills?.forEach { skillName ->
+                    allSkills.find {
+                        it.nameSkill?.trim()?.equals(skillName.trim(), ignoreCase = true) == true
+                    }?.let { selectedSkills.add(it) }
+                }
+
+                profile.proffesions?.forEach { profName ->
+                    allProfessions.find {
+                        it.nameProfession?.trim()?.equals(profName.trim(), ignoreCase = true) == true
+                    }?.let { selectedProfessions.add(it) }
+                }
+            } else {
+                errorMessage = "Не удалось загрузить профиль"
+            }
+        } catch (e: Exception) {
+            errorMessage = e.message
+        }
         isLoading = false
     }
 
@@ -73,9 +115,54 @@ fun EditProfileScreen(
     val skillNames = allSkills.map { it.nameSkill ?: "" }
     val professionNames = allProfessions.map { it.nameProfession ?: "" }
 
-    fun findUniversityByName(name: String): University? = universities.find { it.nameUniversity == name }
-    fun findSkillByName(name: String): Skills? = allSkills.find { it.nameSkill == name }
-    fun findProfessionByName(name: String): Proffesions? = allProfessions.find { it.nameProfession == name }
+    fun findUniversityByName(name: String) = universities.find { it.nameUniversity == name }
+    fun findSkillByName(name: String) = allSkills.find { it.nameSkill == name }
+    fun findProfessionByName(name: String) = allProfessions.find { it.nameProfession == name }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    // Функция сохранения профиля - теперь внутри composable
+    fun saveProfile() {
+        scope.launch {
+            try {
+                // Формируем ФИО обратно
+                val nameParts = fio.split(" ")
+                val surname = nameParts.getOrNull(0) ?: ""
+                val name = nameParts.getOrNull(1) ?: ""
+                val patronymic = nameParts.getOrNull(2) ?: ""
+
+                // Создаем объект для сохранения
+                val profileToSave = AllUserprofile(
+                    student = Student(
+                        idStudent = userProfile?.student!!.idStudent,
+                        nameStudent = name,
+                        surnameStudent = surname,
+                        patronymicStudent = patronymic,
+                        birthdayStudent = birthDate,
+                        courseStudent = course.toIntOrNull(),
+                        facultatyStudent = specialty,
+                        emailStudent = userProfile?.student!!.emailStudent,
+                        universityStudent = selectedUniversity?.idUniversity
+                    ),
+                    university = selectedUniversity?.nameUniversity ?: "",
+                    skills = selectedSkills.map { it.nameSkill ?: "" },
+                    proffesions = selectedProfessions.map { it.nameProfession ?: "" },
+                    studentFiles = userProfile?.studentFiles ?: emptyList()
+                )
+
+                val success = api.saveUserProfile(profileToSave)
+                println(profileToSave)
+                if (success) {
+                    snackbarHostState.showSnackbar("Профиль успешно сохранен!")
+                    onSave()
+                } else {
+                    snackbarHostState.showSnackbar("Ошибка при сохранении профиля")
+                    println("Ошибка при сохранении профиля")
+                }
+            } catch (e: Exception) {
+                println("Ошибка: ${e.message}")
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -83,7 +170,8 @@ fun EditProfileScreen(
                 onNavigate(target)
             }
         },
-        containerColor = Color.Transparent
+        containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Box(
             modifier = Modifier
@@ -95,6 +183,10 @@ fun EditProfileScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color.White)
                 }
+            } else if (errorMessage != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(errorMessage ?: "Ошибка", color = Color.White)
+                }
             } else {
                 Column(
                     modifier = Modifier
@@ -103,15 +195,10 @@ fun EditProfileScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "Редактирование профиля",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
+                    Text("Редактирование профиля", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Аватар
                     Box(contentAlignment = Alignment.BottomEnd) {
                         Surface(
                             modifier = Modifier.size(120.dp),
@@ -122,7 +209,7 @@ fun EditProfileScreen(
                                 Icons.Default.Person,
                                 null,
                                 tint = Color.White,
-                                modifier = Modifier.padding(20.dp)
+                                modifier = Modifier.fillMaxSize().padding(20.dp)
                             )
                         }
                         IconButton(
@@ -137,8 +224,9 @@ fun EditProfileScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    CustomInputField("ФИО", fio) { fio = it }
-                    CustomInputField("Дата рождения", birthDate) { birthDate = it }
+                    CustomInputField("ФИО", fio ,{ fio = it }, enabled = true)
+                    CustomInputField("Логин/почта", email, { email = it },enabled = false)
+                    CustomInputField("Дата рождения", birthDate, { birthDate = it } , enabled = false)
 
                     UniversityAutocompleteField(
                         label = "Университет",
@@ -147,8 +235,8 @@ fun EditProfileScreen(
                         onOptionSelected = { selectedUniversity = findUniversityByName(it) }
                     )
 
-                    CustomInputField("Специальность", specialty) { specialty = it }
-                    CustomInputField("Курс", course) { course = it }
+                    CustomInputField("Специальность", specialty, { specialty = it }, enabled = true)
+                    CustomInputField("Курс", course,{ course = it },enabled = true )
 
                     MultiSelectFieldFromApi(
                         label = "Навыки",
@@ -190,12 +278,7 @@ fun EditProfileScreen(
                     GradientButton(
                         text = "Сохранить изменения",
                         icon = Icons.Default.Save,
-                        onClick = {
-                            scope.launch {
-                                // TODO: Отправить данные на сервер через api.updateProfile()
-                                onSave()
-                            }
-                        },
+                        onClick = { saveProfile() }, // Вызываем функцию сохранения
                         gradient = listOf(Color(0xFF5399BC), Color(0xFF7B61FF))
                     )
 
@@ -206,13 +289,20 @@ fun EditProfileScreen(
     }
 }
 
+
 @Composable
-fun CustomInputField(label: String, value: String, onValueChange: (String) -> Unit) {
+fun CustomInputField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean = true  // Добавляем параметр
+) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,  // Используем параметр
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
@@ -220,7 +310,9 @@ fun CustomInputField(label: String, value: String, onValueChange: (String) -> Un
                 focusedBorderColor = Color.White,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
                 focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
+                unfocusedContainerColor = Color.Transparent,
+                disabledTextColor = Color.White.copy(alpha = 0.5f),  // Цвет текста для disabled
+                disabledBorderColor = Color.White.copy(alpha = 0.3f)  // Цвет рамки для disabled
             )
         )
     }
@@ -257,9 +349,7 @@ fun UniversityAutocompleteField(
                     expanded = true
                     if (it.isEmpty()) onOptionSelected("")
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
                 placeholder = { Text("Выберите университет", color = Color.White.copy(alpha = 0.5f)) },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
@@ -279,13 +369,7 @@ fun UniversityAutocompleteField(
             ) {
                 filteredOptions.take(10).forEach { option ->
                     DropdownMenuItem(
-                        text = {
-                            Text(
-                                option,
-                                color = Color.White,
-                                fontSize = 14.sp
-                            )
-                        },
+                        text = { Text(option, color = Color.White, fontSize = 14.sp) },
                         onClick = {
                             inputText = option
                             onOptionSelected(option)
@@ -298,8 +382,6 @@ fun UniversityAutocompleteField(
     }
 }
 
-
-
 @Composable
 fun GradientButton(
     text: String,
@@ -309,21 +391,14 @@ fun GradientButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent
-        ),
+        modifier = Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         content = {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.horizontalGradient(gradient),
-                        shape = RoundedCornerShape(16.dp)
-                    ),
+                modifier = Modifier.fillMaxSize().background(
+                    brush = Brush.horizontalGradient(gradient),
+                    shape = RoundedCornerShape(16.dp)
+                ),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -331,20 +406,10 @@ fun GradientButton(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     if (icon != null) {
-                        Icon(
-                            icon,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text(
-                        text,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

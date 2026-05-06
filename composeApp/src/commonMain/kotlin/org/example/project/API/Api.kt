@@ -14,11 +14,18 @@ import org.example.project.Models.Vacancy
 import io.ktor.client.call.body;
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.builtins.ListSerializer
+import org.example.project.Models.AllUserprofile
 import org.example.project.Models.CardVacancy
 import org.example.project.Models.Proffesions
 import org.example.project.Models.Skills
 import org.example.project.Models.University
-
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.decodeToImageBitmap
+import io.ktor.http.ContentType
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.IO
 class ApiClient {
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -30,6 +37,30 @@ class ApiClient {
     }
 
     private val BASE_URL = "http://10.0.2.2:5131/api/"
+    suspend fun saveUserProfile(profile: AllUserprofile): Boolean {
+        return try {
+            val url = "${BASE_URL}User/SaveUserProfile"
+            println("Saving profile to: $url")
+
+            val response = client.put(url) {
+                contentType(ContentType.Application.Json)
+                setBody(profile)  // Ktor сам сериализует, не нужно вызывать encodeToString
+            }
+
+            println("Response status: ${response.status}")
+
+            if (response.status.value != 200) {
+                val errorBody = response.bodyAsText()
+                println("Error body: $errorBody")
+            }
+
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            println("Exception: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
     suspend fun login(user: User): User? {
         return try {
             val url = "${BASE_URL}User/Authorization/${user.emailUser}/${user.passwordUser}"
@@ -38,6 +69,38 @@ class ApiClient {
             println(response)
             if (response.status.value in 200..299) {
                 response.body<User>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun deleteuser(id: Int): Student? {
+        return try {
+            val url = "${BASE_URL}User/DeleteUser/${id}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<Student>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getUserArhciveVacancies(id: Int): List<Listresponcies>? {
+        return try {
+            val url = "${BASE_URL}User/GetUserArchiveVacancies/${id}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<List<Listresponcies>>()
             } else {
                 null
             }
@@ -198,6 +261,25 @@ class ApiClient {
             println(response)
             if (response.status.value in 200..299) {
                 response.body<Int>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+
+
+    suspend fun getAllUserProfile(userid:Int): AllUserprofile? {
+        return try {
+            val url = "${BASE_URL}User/GetAllUserProfile/${userid}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<AllUserprofile>()
             } else {
                 null
             }

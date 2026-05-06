@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.Student
@@ -28,9 +29,16 @@ fun SettingsScreen(
     api: ApiClient,
     onNavigate: (String) -> Unit,
     onNavigateToFavourites: () -> Unit,
+    onNavigateToArchive: () -> Unit,
     onLogout: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     var messageCount by remember { mutableStateOf(0) }
+
+    // Состояния для диалогов
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val user = Student(
@@ -142,7 +150,7 @@ fun SettingsScreen(
                     SettingsButton(
                         text = "Архив стажировок",
                         icon = Icons.Default.Archive,
-                        onClick = { /* TODO */ }
+                        onClick = { onNavigateToArchive() }
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -150,19 +158,117 @@ fun SettingsScreen(
                     SettingsButton(
                         text = "Удалить профиль",
                         icon = Icons.Default.DeleteForever,
-                        onClick = { /* TODO */ }
+                        onClick = { showDeleteDialog = true }
                     )
 
                     SettingsButton(
                         text = "Выйти из аккаунта",
                         icon = Icons.Default.Logout,
-                        onClick = onLogout
+                        onClick = { showLogoutDialog = true }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
+
+    // Диалог подтверждения выхода
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Выход из аккаунта", color = Color.White) },
+            text = { Text("Вы уверены, что хотите выйти?", color = Color.White.copy(alpha = 0.8f)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    }
+                ) {
+                    Text("Выйти", color = Color(0xFF5399BC))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Отмена", color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White
+        )
+    }
+
+    // Диалог подтверждения удаления профиля
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    "Удаление профиля",
+                    color = Color(0xFFB71C1C),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Вы уверены, что хотите удалить свой профиль?",
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Это действие необратимо. Все ваши данные будут потеряны.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        scope.launch {
+                            isDeleting = true
+                            val userId = CurrentUser.id ?: 0
+                            val result = api.deleteuser(userId)
+                            isDeleting = false
+
+                            if (result != null) {
+                                onLogout() // Выход после удаления
+                            } else {
+                                // Показать ошибку
+                                println("Ошибка при удалении профиля")
+                            }
+                        }
+                    },
+                    enabled = !isDeleting
+                ) {
+                    if (isDeleting) {
+                        Row {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color(0xFFB71C1C),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Удаление...", color = Color(0xFFB71C1C))
+                        }
+                    } else {
+                        Text("Удалить", color = Color(0xFFB71C1C))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Отмена", color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            titleContentColor = Color(0xFFB71C1C),
+            textContentColor = Color.White
+        )
     }
 }
 
