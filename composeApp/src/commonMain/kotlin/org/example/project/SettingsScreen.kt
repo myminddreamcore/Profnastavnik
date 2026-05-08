@@ -35,7 +35,6 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var messageCount by remember { mutableStateOf(0) }
 
-    // Состояния для диалогов
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
@@ -173,7 +172,6 @@ fun SettingsScreen(
         }
     }
 
-    // Диалог подтверждения выхода
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -200,7 +198,6 @@ fun SettingsScreen(
         )
     }
 
-    // Диалог подтверждения удаления профиля
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

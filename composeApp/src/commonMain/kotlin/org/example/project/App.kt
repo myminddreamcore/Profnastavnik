@@ -8,11 +8,9 @@ import org.example.project.API.ApiClient
 
 @Composable
 fun App() {
-    var screenState by remember { mutableStateOf(0) }
     val api = remember { ApiClient() }
     var responseType by remember { mutableStateOf("consider") }
     var selectedVacancyId by remember { mutableStateOf(0) }
-
     val navigationStack = remember { mutableStateListOf(0) }
 
     fun navigateTo(state: Int) {
@@ -112,7 +110,11 @@ fun App() {
 
             7 -> SearchScreen(
                 api = api,
-                onNavigate = globalNavigate
+                onNavigate = globalNavigate,
+                onNavigateToDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
             )
 
             10 -> EditProfileScreen(
@@ -120,6 +122,7 @@ fun App() {
                 onNavigate = globalNavigate,
                 onSave = { goBack() }
             )
+
         }
     }
 }

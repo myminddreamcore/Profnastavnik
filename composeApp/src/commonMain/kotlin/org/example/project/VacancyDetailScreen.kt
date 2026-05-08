@@ -65,7 +65,9 @@ fun VacancyDetailScreen(
                 val v = data.vacancy
                 val name = data.nameCompany
                 val currency = data.currency
-                val formats = data.formats?.joinToString(" ")
+                val formats = data.formats?.joinToString(",\n")
+                val skills = data.skills?.joinToString(", ") ?: ""
+                val sferes = data.sferes?.joinToString(", ") ?: ""
 
                 Column(
                     modifier = Modifier
@@ -147,54 +149,105 @@ fun VacancyDetailScreen(
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                InfoBadge("${v?.zenStartVacancy} - ${v?.zenEndVacancy} $currency")
-                                InfoBadge(formats ?: "")
-                                InfoBadge(v?.timeVacancy ?: "14 дней")
+                            if ((v?.zenStartVacancy != null && v?.zenEndVacancy != null) ||
+                                formats?.isNotBlank() == true ||
+                                v?.timeVacancy != null) {
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (v?.zenStartVacancy != null && v?.zenEndVacancy != null) {
+                                        InfoBadge("${v.zenStartVacancy} \n- ${v.zenEndVacancy} $currency")
+                                    }
+                                    if (formats?.isNotBlank() == true) {
+                                        InfoBadge(formats)
+                                    }
+                                    if (v?.timeVacancy != null) {
+                                        InfoBadge(v.timeVacancy!!)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
                             }
 
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            Text(
-                                if (v?.anybodyVacancy == true) "С наставником" else "Без наставника",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                v?.descriptionVacancy ?: "Описание отсутствует",
-                                color = Color.White.copy(alpha = 0.8f),
-                                lineHeight = 20.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(40.dp))
-
-                            Text(
-                                name ?: "",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            if (v?.anybodyVacancy != null) {
                                 Text(
-                                    "Рейтинг ${data.ratingCompany}",
+                                    if (v.anybodyVacancy == true) "С наставником" else "Без наставника",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    Icons.Default.Star,
-                                    null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            if (!v?.descriptionVacancy.isNullOrBlank()) {
+                                Text(
+                                    v?.descriptionVacancy ?: "",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    lineHeight = 20.sp
                                 )
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+
+                            if (skills.isNotBlank()) {
+                                Text(
+                                    "Навыки:",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    skills,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+
+                            if (sferes.isNotBlank()) {
+                                Text(
+                                    "Сферы деятельности:",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    sferes,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+
+                            if (!name.isNullOrBlank()) {
+                                Text(
+                                    name,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+
+                            if (data.ratingCompany != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Рейтинг ${data.ratingCompany}",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.Star,
+                                        null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
 
                             Text(
@@ -227,7 +280,7 @@ fun InfoBadge(text: String) {
         Text(
             text,
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
     }

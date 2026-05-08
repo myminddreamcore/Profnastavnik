@@ -1,5 +1,5 @@
 package org.example.project.API
-import androidx.compose.foundation.background
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,38 +13,47 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MultiSelectFieldFromApi(
     label: String,
     options: List<String>,
-    selectedOptionsNames: MutableList<String>,
+    selectedOptionsNames: List<String>,
     onOptionsSelected: (List<String>) -> Unit,
     placeholder: String
 ) {
     var text by remember { mutableStateOf("") }
+    var selectedLocal by remember(selectedOptionsNames) { mutableStateOf(selectedOptionsNames) }
+
+    LaunchedEffect(selectedOptionsNames) {
+        if (selectedLocal != selectedOptionsNames) {
+            selectedLocal = selectedOptionsNames
+        }
+    }
+
     val filteredOptions = options.filter {
-        it.contains(text, ignoreCase = true) && it !in selectedOptionsNames
+        it.contains(text, ignoreCase = true) && it !in selectedLocal
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
 
-        FlowRow(
+        androidx.compose.foundation.layout.FlowRow(
             modifier = Modifier.padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            selectedOptionsNames.forEach { item ->
+            selectedLocal.forEach { item ->
                 AssistChip(
                     onClick = {
-                        selectedOptionsNames.remove(item)
-                        onOptionsSelected(selectedOptionsNames.toList())
+                        val newList = selectedLocal.toMutableList().apply { remove(item) }
+                        selectedLocal = newList
+                        onOptionsSelected(newList)
                     },
                     label = {
-                        Text(
-                            item,
-                            color = Color.White,
-                            fontSize = 12.sp
-                        )
+                        Text(item, color = Color.White, fontSize = 12.sp)
                     },
                     trailingIcon = {
                         Icon(
@@ -78,9 +87,7 @@ fun MultiSelectFieldFromApi(
 
         if (text.isNotEmpty() && filteredOptions.isNotEmpty()) {
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF2D3243)
-                ),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D3243)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 150.dp)
@@ -95,8 +102,9 @@ fun MultiSelectFieldFromApi(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedOptionsNames.add(option)
-                                    onOptionsSelected(selectedOptionsNames.toList())
+                                    val newList = selectedLocal.toMutableList().apply { add(option) }
+                                    selectedLocal = newList
+                                    onOptionsSelected(newList)
                                     text = ""
                                 }
                                 .padding(12.dp)

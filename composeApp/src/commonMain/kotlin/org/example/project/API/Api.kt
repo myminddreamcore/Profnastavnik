@@ -26,6 +26,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
+import org.example.project.Models.Filters
+import org.example.project.Models.Formats
+import org.example.project.Models.Sferes
+
 class ApiClient {
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -221,6 +225,38 @@ class ApiClient {
             null
         }
     }
+    suspend fun getSferes(): List<Sferes>? {
+        return try {
+            val url = "${BASE_URL}Sfere/GetAllSferes"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<List<Sferes>>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getFormats(): List<Formats>? {
+        return try {
+            val url = "${BASE_URL}Format/GetAllFormats"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<List<Formats>>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     suspend fun getVacancies(user: Student): List<UserVacancies>? {
         return try {
             val url = "${BASE_URL}User/UserVacancy/${user.idStudent}"
@@ -309,8 +345,27 @@ class ApiClient {
     suspend fun getrejectedVacancy(user: Student): List<Listresponcies>? {
         return try {
             val url = "${BASE_URL}Responces/GetUserRejectedIntership/${user.idStudent}"
+
             println(url)
             val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Listresponcies>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getfilteredVacancy(filters: Filters): List<Listresponcies>? {
+        return try {
+            val response = client.post("${BASE_URL}Responces/GetFilterIntership") {
+                contentType(io.ktor.http.ContentType.Application.Json)
+                setBody(filters)
+            }
             println(response)
             if (response.status.value in 200..299) {
                 val jsonString = response.bodyAsText()

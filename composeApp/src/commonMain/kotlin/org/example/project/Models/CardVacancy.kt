@@ -7,5 +7,7 @@ data class CardVacancy (
     var nameCompany: String? = null,
 
     var formats: List<String>? = null,
+    var skills: List<String>? = null,
+    var sferes: List<String>? = null,
     var currency: String? = null,
 )
