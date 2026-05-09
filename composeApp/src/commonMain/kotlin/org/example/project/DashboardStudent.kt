@@ -18,25 +18,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.API.ApiClient
 import org.example.project.Models.CurrentUser
+import org.example.project.Models.Listresponcies
 import org.example.project.Models.Student
 import org.example.project.Models.UserVacancies
-
 val NavItemColor = Color(0xFF5399BC)
+
 @Composable
 fun DashboardStudent(
     api: ApiClient,
     onNavigate: (String) -> Unit,
-    onNavigateToResponses: (String) -> Unit
+    onNavigateToResponses: (String) -> Unit,
+    onNavigateToVacancyDetail: (Int) -> Unit
 ) {
     var vacancies by remember { mutableStateOf<List<UserVacancies>>(emptyList()) }
+    var recommendations by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
     var messageCount by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         val user = Student(idStudent = CurrentUser.id ?: 0, emailStudent = CurrentUser.email ?: "")
         val fetchedVacancies = api.getVacancies(user)
+        val fetchedRecommendations = api.getRecommendationVacancy(CurrentUser.id ?: 0)
         val fetchedMessages = api.getCountUsermessages(user)
+
         if (fetchedVacancies != null) vacancies = fetchedVacancies
+        if (fetchedRecommendations != null) recommendations = fetchedRecommendations
         if (fetchedMessages != null) messageCount = fetchedMessages
         isLoading = false
     }
@@ -55,13 +61,27 @@ fun DashboardStudent(
                 .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
                 .padding(paddingValues)
         ) {
-            MainDashboardContent(vacancies, messageCount, isLoading, onNavigateToResponses = onNavigateToResponses)
+            MainDashboardContent(
+                vacancies = vacancies,
+                recommendations = recommendations,
+                messageCount = messageCount,
+                isLoading = isLoading,
+                onNavigateToResponses = onNavigateToResponses,
+                onNavigateToVacancyDetail = onNavigateToVacancyDetail
+            )
         }
     }
 }
 
 @Composable
-fun MainDashboardContent(vacancies: List<UserVacancies>, messageCount: Int, isLoading: Boolean, onNavigateToResponses: (String) -> Unit) {
+fun MainDashboardContent(
+    vacancies: List<UserVacancies>,
+    recommendations: List<Listresponcies>,
+    messageCount: Int,
+    isLoading: Boolean,
+    onNavigateToResponses: (String) -> Unit,
+    onNavigateToVacancyDetail: (Int) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -151,23 +171,74 @@ fun MainDashboardContent(vacancies: List<UserVacancies>, messageCount: Int, isLo
 
         Text("Рекомендации", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            repeat(3) {
-                Box(
-                    modifier = Modifier
-                        .width(160.dp)
-                        .height(180.dp)
-                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                )
+
+        if (isLoading) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color.White)
+            }
+        } else {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (recommendations.isEmpty()) {
+                    Text(
+                        "Нет рекомендаций",
+                        color = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                } else {
+                    recommendations.forEach { recommendation ->
+                        RecommendationCard(
+                            item = recommendation,
+                            onClick = { onNavigateToVacancyDetail(recommendation.idVacancy ?: 0) }
+                        )
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(30.dp))
     }
 }
+
+@Composable
+fun RecommendationCard(item: Listresponcies, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(170.dp)
+            .height(190.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.15f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                item.nameVacancy ?: "Вакансия",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 2
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "${item.zenStart} - ${item.zenEnd} ${item.currency}",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                "Длительность: ${item.time}",
+                color = Color(0xFF5399BC),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+
 @Composable
 fun CustomBottomNavigation(
     currentScreen: String,

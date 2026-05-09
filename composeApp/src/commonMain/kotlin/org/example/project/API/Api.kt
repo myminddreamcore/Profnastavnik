@@ -360,6 +360,24 @@ class ApiClient {
             null
         }
     }
+    suspend fun getRecommendationVacancy(id: Int): List<Listresponcies>? {
+        return try {
+            val url = "${BASE_URL}Responces/GetRecommendationsIntership/${id}"
+
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Listresponcies>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     suspend fun getfilteredVacancy(filters: Filters): List<Listresponcies>? {
         return try {
             val response = client.post("${BASE_URL}Responces/GetFilterIntership") {
@@ -431,127 +449,3 @@ class ApiClient {
     }
 }
 
-
-
-//
-//import android.util.Log
-//import com.google.gson.Gson
-//import okhttp3.*
-//import okhttp3.MediaType.Companion.toMediaType
-//import okhttp3.RequestBody.Companion.toRequestBody
-//import java.io.IOException
-//
-//class ApiClient {
-//    companion object {
-//        private const val BASE_URL = "http://10.0.2.2:5090/api/User/"
-//        private const val BASE_URL_Tovar = "http://10.0.2.2:5090/api/Tover/"
-//        private const val BASE_URL_Basket = "http://10.0.2.2:5090/api/Basket/"
-//        private const val BASE_URL_ORDER = "http://10.0.2.2:5090/api/Order/"
-//        private const val TAG = "ApiClient"
-//        private val client = OkHttpClient()
-//        private val gson = Gson()
-//
-//        private val JSON = "application/json; charset=utf-8".toMediaType()
-//    }
-//
-//
-//    fun register(user: User, callback: (User?) -> Unit) {
-//        val json = gson.toJson(user)
-//        Log.d(TAG, "Register JSON: $json")
-//        val body = json.toRequestBody(JSON)
-//        val request = Request.Builder()
-//            .url("${BASE_URL}Registration")
-//            .post(body)
-//            .build()
-//        client.newCall(request).enqueue(object : Callback {
-//            override fun onFailure(call: Call, e: IOException) {
-//                Log.e(TAG, "Register failed connection/internet: ${e.message}", e)
-//                callback(null)
-//            }
-//
-//            override fun onResponse(call: Call, response: Response) {
-//                response.use {
-//                    val statusCode = it.code
-//                    val responseBody = it.body?.string()
-//                    Log.d(TAG, "Register response code: $statusCode")
-//                    Log.d(TAG, "Register response body: $responseBody")
-//                    if (it.isSuccessful) {
-//                        Log.d(TAG, "Registration successful: $responseBody")
-//                        callback(user)
-//                    } else {
-//                        callback(null)
-//                    }
-//                }
-//            }
-//        })
-//    }
-//    fun login(loginRequest: User, callback: (User?) -> Unit) {
-//        val url = "${BASE_URL}Authorization/${loginRequest.email}/${loginRequest.password}"
-//        Log.d(TAG, "Login URL: $url")
-//
-//        val request = Request.Builder()
-//            .url(url)
-//            .post("".toRequestBody())
-//            .build()
-//
-//        client.newCall(request).enqueue(object : Callback {
-//            override fun onFailure(call: Call, e: IOException) {
-//                Log.e(TAG, "Login failed: ${e.message}", e)
-//                callback(null)
-//            }
-//
-//            override fun onResponse(call: Call, response: Response) {
-//                response.use {
-//                    val statusCode = it.code
-//                    val responseBody = it.body?.string()
-//
-//                    Log.d(TAG, "Login response code: $statusCode")
-//                    Log.d(TAG, "Login response body: $responseBody")
-//
-//                    if (it.isSuccessful && responseBody != null) {
-//                        try {
-//                            val authResponse = gson.fromJson(responseBody, User::class.java)
-//                            callback(authResponse)
-//                        } catch (e: Exception) {
-//                            Log.e(TAG, "Parse error: ${e.message}", e)
-//                            callback(null)
-//                        }
-//                    } else {
-//                        callback(null)
-//                    }
-//                }
-//            }
-//        })
-//    }
-////    fun getAllProducts(callback: (Boolean, List<Product>?) -> Unit) {
-////        val request = Request.Builder()
-////            .url("${com.example.proekt.api.ApiClient.Companion.BASE_URL_Tovar}GetAllActualTovars")
-////            .get()
-////            .build()
-////
-////        com.example.proekt.api.ApiClient.Companion.client.newCall(request).enqueue(object : Callback {
-////            override fun onFailure(call: Call, e: IOException) {
-////                callback(false, null)
-////            }
-////
-////            override fun onResponse(call: Call, response: Response) {
-////                response.use {
-////                    if (it.isSuccessful) {
-////                        try {
-////                            val responseBody = it.body?.string()
-////                            val type = object : TypeToken<List<Product>>() {}.type
-////                            val products = com.example.proekt.api.ApiClient.Companion.gson.fromJson<List<Product>>(responseBody, type)
-////
-////                            callback(true, products)
-////                        } catch (e: Exception) {
-////                            e.printStackTrace()
-////                            callback(false, null)
-////                        }
-////                    } else {
-////                        callback(false, null)
-////                    }
-////                }
-////            }
-////        })
-////    }
-//}

@@ -71,6 +71,10 @@ fun App() {
                 onNavigateToResponses = { type ->
                     responseType = type
                     navigateTo(4)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
                 }
             )
 
