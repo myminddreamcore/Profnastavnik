@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
+import org.example.project.Models.ChatDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
 import org.example.project.Models.Sferes
@@ -352,6 +353,23 @@ class ApiClient {
             if (response.status.value in 200..299) {
                 val jsonString = response.bodyAsText()
                 Json.decodeFromString<List<Listresponcies>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getUserChats(userId: Int): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}User/GetUserChats/$userId"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
             } else {
                 null
             }

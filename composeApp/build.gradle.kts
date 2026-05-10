@@ -45,7 +45,7 @@ kotlin {
             implementation("io.ktor:ktor-client-content-negotiation:3.0.1")
             implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.1")
             implementation("io.ktor:ktor-client-logging:3.0.1")
-
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
 
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)

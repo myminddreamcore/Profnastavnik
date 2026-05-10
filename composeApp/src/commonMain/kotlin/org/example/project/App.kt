@@ -5,6 +5,7 @@ import RegistrationScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
+import org.example.project.Models.ChatDTO
 
 @Composable
 fun App() {
@@ -12,6 +13,7 @@ fun App() {
     var responseType by remember { mutableStateOf("consider") }
     var selectedVacancyId by remember { mutableStateOf(0) }
     val navigationStack = remember { mutableStateListOf(0) }
+    var selectedChat by remember { mutableStateOf<ChatDTO?>(null) }
 
     fun navigateTo(state: Int) {
         navigationStack.add(state)
@@ -49,20 +51,11 @@ fun App() {
     MaterialTheme {
         when (currentState) {
             0 -> MainScreen(
-                onNavigateToLogin = {
-                    navigateTo(1)
-                },
-                onNavigateToReg = {
-                    navigateTo(2)
-                }
+                onNavigateToLogin = { navigateTo(1) },
+                onNavigateToReg = { navigateTo(2) }
             )
 
-            1 -> LoginScreen(
-                onSuccess = {
-                    navigateTo(3)
-                }
-            )
-
+            1 -> LoginScreen(onSuccess = { navigateTo(3) })
             2 -> RegistrationScreen()
 
             3 -> DashboardStudent(
@@ -75,7 +68,8 @@ fun App() {
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
-                }
+                },
+                onNavigateToChats = { navigateTo(11) }
             )
 
             4 -> ResponsesScreen(
@@ -95,6 +89,15 @@ fun App() {
                 vacancyId = selectedVacancyId
             )
 
+            7 -> SearchScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
+            )
+
             8 -> SettingsScreen(
                 api = api,
                 onNavigate = globalNavigate,
@@ -112,21 +115,26 @@ fun App() {
                 }
             )
 
-            7 -> SearchScreen(
-                api = api,
-                onNavigate = globalNavigate,
-                onNavigateToDetail = { vacancyId ->
-                    selectedVacancyId = vacancyId
-                    navigateTo(5)
-                }
-            )
-
             10 -> EditProfileScreen(
                 api = api,
                 onNavigate = globalNavigate,
                 onSave = { goBack() }
             )
 
+            11 -> ChatsScreen(
+                api = api,
+                onBack = { goBack() },
+                onNavigateToChat = { chat ->
+                    selectedChat = chat
+                    navigateTo(12)
+                }
+            )
+
+            12 -> ChatDetailScreen(
+                api = api,
+                chat = selectedChat,
+                onBack = { goBack() }
+            )
         }
     }
 }

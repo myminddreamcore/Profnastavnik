@@ -28,7 +28,8 @@ fun DashboardStudent(
     api: ApiClient,
     onNavigate: (String) -> Unit,
     onNavigateToResponses: (String) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit
+    onNavigateToVacancyDetail: (Int) -> Unit,
+    onNavigateToChats: () -> Unit
 ) {
     var vacancies by remember { mutableStateOf<List<UserVacancies>>(emptyList()) }
     var recommendations by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
@@ -67,7 +68,9 @@ fun DashboardStudent(
                 messageCount = messageCount,
                 isLoading = isLoading,
                 onNavigateToResponses = onNavigateToResponses,
-                onNavigateToVacancyDetail = onNavigateToVacancyDetail
+                onNavigateToVacancyDetail = onNavigateToVacancyDetail,
+                onNavigateToChats = onNavigateToChats
+
             )
         }
     }
@@ -80,7 +83,8 @@ fun MainDashboardContent(
     messageCount: Int,
     isLoading: Boolean,
     onNavigateToResponses: (String) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit
+    onNavigateToVacancyDetail: (Int) -> Unit?,
+    onNavigateToChats: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -97,7 +101,9 @@ fun MainDashboardContent(
         ) {
             Text("ПРОФНаставник", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
-            Box {
+            Box(
+                modifier = Modifier.clickable { onNavigateToChats() }
+            )  {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = null,
