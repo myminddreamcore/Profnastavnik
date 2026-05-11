@@ -26,7 +26,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
+import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
+import org.example.project.Models.DirectorDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
 import org.example.project.Models.Sferes
@@ -42,6 +44,80 @@ class ApiClient {
     }
 
     private val BASE_URL = "http://10.0.2.2:5131/api/"
+    suspend fun getChatMessagesCompany(userId: Int, companyId: Int, vacancyId: Int): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}User/GetChatMessagesCompany/${userId}/${companyId}/${vacancyId}"
+            println("URL: $url")
+            val response = client.get(url)
+            println("Response status: ${response.status}")
+            val jsonString = response.bodyAsText()
+            println("Response body: $jsonString")
+            if (response.status.value in 200..299) {
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getChatMessagesAdmin(userId: Int, emailAdmin: String, ): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}User/GetChatMessagesAdmin/${userId}/${emailAdmin}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompanyCard(companyId: Int): DirectorDTO? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyCard/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<DirectorDTO>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun sendMessage(chat: Chat): Boolean {
+        return try {
+            val url = "${BASE_URL}User/SendMessage"
+            println("Sending message to: $url")
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(chat)
+            }
+            println("Response status: ${response.status}")
+            if (response.status.value != 200) {
+                val error = response.bodyAsText()
+                println("Error: $error")
+            }
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            println("Exception: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
     suspend fun saveUserProfile(profile: AllUserprofile): Boolean {
         return try {
             val url = "${BASE_URL}User/SaveUserProfile"
@@ -49,7 +125,7 @@ class ApiClient {
 
             val response = client.put(url) {
                 contentType(ContentType.Application.Json)
-                setBody(profile)  // Ktor сам сериализует, не нужно вызывать encodeToString
+                setBody(profile)
             }
 
             println("Response status: ${response.status}")

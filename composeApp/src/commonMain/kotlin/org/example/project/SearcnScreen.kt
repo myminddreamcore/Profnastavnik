@@ -35,7 +35,8 @@ import org.example.project.API.MultiSelectFieldFromApi
 fun SearchScreen(
     api: ApiClient,
     onNavigate: (String) -> Unit,
-    onNavigateToDetail: (Int) -> Unit
+    onNavigateToDetail: (Int) -> Unit,
+    onNavigateToChats: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
@@ -128,10 +129,22 @@ fun SearchScreen(
                 ) {
                     Text("ПРОФНаставник", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
-                    Box(contentAlignment = Alignment.TopEnd) {
-                        Icon(Icons.Default.Notifications, "Уведомления", tint = Color.White, modifier = Modifier.size(32.dp))
+                    Box(
+                        modifier = Modifier.clickable { onNavigateToChats() },
+                        contentAlignment = Alignment.TopEnd
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            "Уведомления",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
                         if (messageCount > 0) {
-                            Surface(color = Color.Red, shape = CircleShape, modifier = Modifier.size(12.dp)) {}
+                            Surface(
+                                color = Color.Red,
+                                shape = CircleShape,
+                                modifier = Modifier.size(12.dp)
+                            ) {}
                         }
                     }
                 }
@@ -140,12 +153,11 @@ fun SearchScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     IconButton(onClick = { showFilters = true }) {
                         Icon(
                             Icons.Default.Tune,
                             "Фильтры",
-                            tint =  Color.White,
+                            tint = Color.White,
                             modifier = Modifier.size(30.dp)
                         )
                     }
@@ -176,6 +188,7 @@ fun SearchScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.White.copy(alpha = 0.12f),

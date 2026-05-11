@@ -14,7 +14,7 @@ fun App() {
     var selectedVacancyId by remember { mutableStateOf(0) }
     val navigationStack = remember { mutableStateListOf(0) }
     var selectedChat by remember { mutableStateOf<ChatDTO?>(null) }
-
+    var selectedCompanyId by remember { mutableStateOf(0) }
     fun navigateTo(state: Int) {
         navigationStack.add(state)
     }
@@ -95,7 +95,8 @@ fun App() {
                 onNavigateToDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
-                }
+                },
+                onNavigateToChats = { navigateTo(11) }
             )
 
             8 -> SettingsScreen(
@@ -109,6 +110,7 @@ fun App() {
                     responseType = "archive"
                     navigateTo(4)
                 },
+                onNavigateToChats = { navigateTo(11) },
                 onLogout = {
                     navigationStack.clear()
                     navigationStack.add(0)
@@ -129,10 +131,28 @@ fun App() {
                     navigateTo(12)
                 }
             )
-
-            12 -> ChatDetailScreen(
+            12 -> {
+                if (selectedChat == null) {
+                    goBack()
+                } else {
+                    ChatDetailScreen(
+                        api = api,
+                        chatDTO = selectedChat!!,
+                        onBack = { goBack() },
+                        onNavigateToVacancy = { vacancyId ->
+                            selectedVacancyId = vacancyId
+                            navigateTo(5)
+                        },
+                        onNavigateToCompany = { companyId ->
+                            selectedCompanyId = companyId
+                            navigateTo(13)
+                        }
+                    )
+                }
+            }
+            13 -> CompanyDetailScreen(
                 api = api,
-                chat = selectedChat,
+                companyId = selectedCompanyId,
                 onBack = { goBack() }
             )
         }

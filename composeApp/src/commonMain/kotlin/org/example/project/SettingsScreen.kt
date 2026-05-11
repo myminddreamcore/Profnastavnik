@@ -30,6 +30,7 @@ fun SettingsScreen(
     onNavigate: (String) -> Unit,
     onNavigateToFavourites: () -> Unit,
     onNavigateToArchive: () -> Unit,
+    onNavigateToChats: () -> Unit,
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -81,10 +82,13 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
 
-                    Box(contentAlignment = Alignment.TopEnd) {
+                    Box(
+                        modifier = Modifier.clickable { onNavigateToChats() },
+                        contentAlignment = Alignment.TopEnd
+                    ) {
                         Icon(
                             Icons.Default.Notifications,
-                            contentDescription = null,
+                            contentDescription = "Уведомления",
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -233,9 +237,8 @@ fun SettingsScreen(
                             isDeleting = false
 
                             if (result != null) {
-                                onLogout() // Выход после удаления
+                                onLogout()
                             } else {
-                                // Показать ошибку
                                 println("Ошибка при удалении профиля")
                             }
                         }
