@@ -27,6 +27,7 @@ fun VacancyDetailScreen(
     api: ApiClient,
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
+    onNavigateToCompany: (Int) -> Unit,
     vacancyId: Int = 0
 ) {
     var detail by remember { mutableStateOf<CardVacancy?>(null) }
@@ -64,6 +65,7 @@ fun VacancyDetailScreen(
             detail?.let { data ->
                 val v = data.vacancy
                 val name = data.nameCompany
+                val companyId = data.companyId
                 val currency = data.currency
                 val formats = data.formats?.joinToString(",\n")
                 val skills = data.skills?.joinToString(", ") ?: ""
@@ -221,12 +223,28 @@ fun VacancyDetailScreen(
                             }
 
                             if (!name.isNullOrBlank()) {
-                                Text(
-                                    name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            companyId?.let { onNavigateToCompany(it) }
+                                        }
+                                ) {
+                                    Text(
+                                        name,
+                                        color = Color(0xFF5399BC),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.OpenInNew,
+                                        null,
+                                        tint = Color(0xFF5399BC),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                             }
 

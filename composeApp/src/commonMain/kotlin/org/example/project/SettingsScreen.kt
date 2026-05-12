@@ -31,6 +31,7 @@ fun SettingsScreen(
     onNavigateToFavourites: () -> Unit,
     onNavigateToArchive: () -> Unit,
     onNavigateToChats: () -> Unit,
+    onNavigateToFeedbacks: () -> Unit,
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -129,7 +130,7 @@ fun SettingsScreen(
                     SettingsButton(
                         text = "Мои жалобы",
                         icon = Icons.Default.Report,
-                        onClick = { /* TODO */ }
+                        onClick = onNavigateToFeedbacks
                     )
 
                     SettingsButton(

@@ -29,6 +29,8 @@ import kotlinx.coroutines.IO
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.DirectorDTO
+import org.example.project.Models.FeedbacksUser
+import org.example.project.Models.FeedbacksUserDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
 import org.example.project.Models.Sferes
@@ -116,6 +118,41 @@ class ApiClient {
             println("Exception: ${e.message}")
             e.printStackTrace()
             false
+        }
+    }
+    suspend fun getUserFeedbacks(userId: Int): List<FeedbacksUserDTO>? {
+        return try {
+            val url = "${BASE_URL}FeedbacksUser/GetUsersFeedbacks/${userId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<FeedbacksUserDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getFeedbackById(feedbackId: Int): FeedbacksUserDTO? {
+        return try {
+            val url = "${BASE_URL}FeedbacksUser/GetFeedback/${feedbackId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<FeedbacksUserDTO>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
     suspend fun saveUserProfile(profile: AllUserprofile): Boolean {

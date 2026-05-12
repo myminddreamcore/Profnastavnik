@@ -7,6 +7,9 @@ import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
 import org.example.project.Models.ChatDTO
 
+import MainScreen
+import RegistrationScreen
+import androidx.compose.runtime.*
 @Composable
 fun App() {
     val api = remember { ApiClient() }
@@ -15,6 +18,7 @@ fun App() {
     val navigationStack = remember { mutableStateListOf(0) }
     var selectedChat by remember { mutableStateOf<ChatDTO?>(null) }
     var selectedCompanyId by remember { mutableStateOf(0) }
+    var selectedFeedbackId by remember { mutableStateOf(0) }
     fun navigateTo(state: Int) {
         navigationStack.add(state)
     }
@@ -86,6 +90,10 @@ fun App() {
                 api = api,
                 onNavigate = globalNavigate,
                 onBack = { goBack() },
+                onNavigateToCompany = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                },
                 vacancyId = selectedVacancyId
             )
 
@@ -111,6 +119,7 @@ fun App() {
                     navigateTo(4)
                 },
                 onNavigateToChats = { navigateTo(11) },
+                onNavigateToFeedbacks = { navigateTo(13) },
                 onLogout = {
                     navigationStack.clear()
                     navigationStack.add(0)
@@ -122,7 +131,11 @@ fun App() {
                 onNavigate = globalNavigate,
                 onSave = { goBack() }
             )
-
+            15 -> CompanyDetailScreen(
+                api = api,
+                companyId = selectedCompanyId,
+                onBack = { goBack() }
+            )
             11 -> ChatsScreen(
                 api = api,
                 onBack = { goBack() },
@@ -145,15 +158,31 @@ fun App() {
                         },
                         onNavigateToCompany = { companyId ->
                             selectedCompanyId = companyId
-                            navigateTo(13)
+                            navigateTo(15)
                         }
                     )
                 }
             }
-            13 -> CompanyDetailScreen(
+            13 -> FeedbacksScreen(
                 api = api,
-                companyId = selectedCompanyId,
-                onBack = { goBack() }
+                onBack = { goBack() },
+                onNavigateToFeedbackDetail = { feedbackId ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(14)
+                }
+            )
+            14 -> FeedbackDetailScreen(
+                api = api,
+                feedbackId = selectedFeedbackId,
+                onBack = { goBack() },
+                onNavigateToCompany = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                },
+                onNavigateToVacancy = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
             )
         }
     }
