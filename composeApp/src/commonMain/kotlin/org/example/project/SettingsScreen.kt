@@ -32,6 +32,7 @@ fun SettingsScreen(
     onNavigateToArchive: () -> Unit,
     onNavigateToChats: () -> Unit,
     onNavigateToFeedbacks: () -> Unit,
+    onNavigateToComplaints: () -> Unit,
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -128,8 +129,9 @@ fun SettingsScreen(
                     )
 
                     SettingsButton(
-                        text = "Мои жалобы",
-                        icon = Icons.Default.Report,
+                        text = "Мои отзывы",
+                        icon = Icons.Default.RateReview,
+
                         onClick = onNavigateToFeedbacks
                     )
 
@@ -146,9 +148,9 @@ fun SettingsScreen(
                     )
 
                     SettingsButton(
-                        text = "Мои отзывы",
-                        icon = Icons.Default.RateReview,
-                        onClick = { /* TODO */ }
+                        text = "Жалобы",
+                        icon = Icons.Default.Report,
+                        onClick = onNavigateToComplaints
                     )
 
                     SettingsButton(

@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 data class Listresponcies(
     var idVacancy: Int? = null,
     var nameVacancy: String? = null,
+    var idCompany: Int? = null,
     var zenStart: Int? = null,
     var zenEnd: Int? = null,
     var currency: String? = null,

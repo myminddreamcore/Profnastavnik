@@ -28,6 +28,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
+import org.example.project.Models.Complaint
+import org.example.project.Models.ComplaintDTO
 import org.example.project.Models.DirectorDTO
 import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.FeedbacksUserDTO
@@ -147,6 +149,109 @@ class ApiClient {
             if (response.status.value in 200..299) {
                 val jsonString = response.bodyAsText()
                 Json.decodeFromString<FeedbacksUserDTO>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getUserComplaints(userId: Int): List<ComplaintDTO>? {
+        return try {
+            val url = "${BASE_URL}Complaint/GetAll/${userId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ComplaintDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun addComplaint(complaint: Complaint): Complaint? {
+        return try {
+            val url = "${BASE_URL}Complaint/AddComplaint"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(complaint)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<Complaint>(jsonString)
+            } else {
+                val error = response.bodyAsText()
+                println("Error: $error")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun deleteFeedback(feedbackId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}FeedbacksUser/DeleteFeedbackUser/${feedbackId}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun deleteComplaint(complaintId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}Complaint/DeleteComplaint/${complaintId}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun addFeedback(feedback: FeedbacksUser): FeedbacksUser? {
+        return try {
+            val url = "${BASE_URL}FeedbacksUser/AddFeedbackUser"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(feedback)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<FeedbacksUser>(jsonString)
+            } else {
+                val error = response.bodyAsText()
+                println("Error: $error")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getComplaintById(complaintId: Int): ComplaintDTO? {
+        return try {
+            val url = "${BASE_URL}Complaint/GetComplaint/${complaintId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<ComplaintDTO>(jsonString)
             } else {
                 null
             }

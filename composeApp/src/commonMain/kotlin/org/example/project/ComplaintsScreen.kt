@@ -22,50 +22,50 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
+import org.example.project.Models.ComplaintDTO
 import org.example.project.Models.CurrentUser
-import org.example.project.Models.FeedbacksUserDTO
 
 @Composable
-fun FeedbacksScreen(
+fun ComplaintsScreen(
     api: ApiClient,
     onBack: () -> Unit,
-    onNavigateToFeedbackDetail: (Int) -> Unit
+    onNavigateToComplaintDetail: (Int) -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var feedbacks by remember { mutableStateOf<List<FeedbacksUserDTO>>(emptyList()) }
+    var complaints by remember { mutableStateOf<List<ComplaintDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var selectedFeedbackId by remember { mutableStateOf<Int?>(null) }
+    var selectedComplaintId by remember { mutableStateOf<Int?>(null) }
 
-    fun loadFeedbacks() {
+    fun loadComplaints(forceRefresh: Boolean = false) {
         scope.launch {
+            if (forceRefresh) {
+                complaints = emptyList()
+            }
             isLoading = true
             val userId = CurrentUser.id ?: 0
-            val result = api.getUserFeedbacks(userId)
+            val result = api.getUserComplaints(userId)
             if (result != null) {
-                feedbacks = result.filter { it.f?.statusFeedbackUser != "Удален" }
+                complaints = result.filter { it.complaint?.statusComplaint != "Удален" }
             }
             isLoading = false
         }
     }
 
     LaunchedEffect(Unit) {
-        loadFeedbacks()
+        loadComplaints()
     }
 
-    fun deleteFeedback() {
+    fun deleteComplaint() {
         scope.launch {
-            selectedFeedbackId?.let { id ->
-                val success = api.deleteFeedback(id)
+            selectedComplaintId?.let { id ->
+                val success = api.deleteComplaint(id)
                 if (success) {
-                    feedbacks = emptyList()
-                    loadFeedbacks()
-                } else {
-                    println("Ошибка при удалении")
+                    loadComplaints(forceRefresh = true)
                 }
             }
             showDeleteDialog = false
-            selectedFeedbackId = null
+            selectedComplaintId = null
         }
     }
 
@@ -92,7 +92,7 @@ fun FeedbacksScreen(
                 }
 
                 Text(
-                    "Мои отзывы",
+                    "Мои жалобы",
                     color = Color.White,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
@@ -109,12 +109,12 @@ fun FeedbacksScreen(
                         CircularProgressIndicator(color = Color.White)
                     }
                 }
-                feedbacks.isEmpty() -> {
+                complaints.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Report, null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("У вас пока нет отзывов", color = Color.White.copy(alpha = 0.5f))
+                            Text("У вас пока нет жалоб", color = Color.White.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -124,12 +124,12 @@ fun FeedbacksScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(feedbacks) { item ->
-                            FeedbackCard(
+                        items(complaints) { item ->
+                            ComplaintCard(
                                 item = item,
-                                onClick = { onNavigateToFeedbackDetail(item.f?.idFeedbackUser ?: 0) },
+                                onClick = { onNavigateToComplaintDetail(item.complaint?.idComplaint ?: 0) },
                                 onDelete = {
-                                    selectedFeedbackId = item.f?.idFeedbackUser
+                                    selectedComplaintId = item.complaint?.idComplaint
                                     showDeleteDialog = true
                                 }
                             )
@@ -145,7 +145,7 @@ fun FeedbacksScreen(
             onDismissRequest = { showDeleteDialog = false },
             title = {
                 Text(
-                    "Удаление отзыва",
+                    "Удаление жалобы",
                     color = Color(0xFFB71C1C),
                     fontWeight = FontWeight.Bold
                 )
@@ -153,7 +153,7 @@ fun FeedbacksScreen(
             text = {
                 Column {
                     Text(
-                        "Вы уверены, что хотите удалить этот отзыв?",
+                        "Вы уверены, что хотите удалить эту жалобу?",
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -166,7 +166,7 @@ fun FeedbacksScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { deleteFeedback() }
+                    onClick = { deleteComplaint() }
                 ) {
                     Text("Удалить", color = Color(0xFFB71C1C))
                 }
@@ -184,8 +184,8 @@ fun FeedbacksScreen(
 }
 
 @Composable
-fun FeedbackCard(
-    item: FeedbacksUserDTO,
+fun ComplaintCard(
+    item: ComplaintDTO,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -239,22 +239,8 @@ fun FeedbackCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Оценка: ", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                    Text(
-                        "${item.f?.ratingFeedbackUser ?: "Нет"}",
-                        color = Color(0xFFFFB74D),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    repeat(item.f?.ratingFeedbackUser ?: 0) {
-                        Icon(Icons.Default.Star, null, tint = Color(0xFFFFB74D), modifier = Modifier.size(14.dp))
-                    }
-                }
-
                 Surface(
-                    color = when (item.f?.statusFeedbackUser) {
+                    color = when (item.complaint?.statusComplaint) {
                         "Новая" -> Color(0xFFFF9800)
                         "Рассмотрена" -> Color(0xFF4CAF50)
                         else -> Color(0xFF9E9E9E)
@@ -262,7 +248,7 @@ fun FeedbackCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        item.f?.statusFeedbackUser ?: "Неизвестно",
+                        item.complaint?.statusComplaint ?: "Неизвестно",
                         color = Color.White,
                         fontSize = 10.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -273,7 +259,7 @@ fun FeedbackCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                item.f?.descriptionFeedbackUser ?: "Нет описания",
+                item.complaint?.descriptionComplaint ?: "Нет описания",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 13.sp,
                 maxLines = 2,

@@ -19,6 +19,9 @@ fun App() {
     var selectedChat by remember { mutableStateOf<ChatDTO?>(null) }
     var selectedCompanyId by remember { mutableStateOf(0) }
     var selectedFeedbackId by remember { mutableStateOf(0) }
+    var selectedComplaintId by remember { mutableStateOf(0) }
+    var selectedVacancyForAction by remember { mutableStateOf(0) }
+    var selectedCompanyForAction by remember { mutableStateOf<Int?>(null) }
     fun navigateTo(state: Int) {
         navigationStack.add(state)
     }
@@ -83,9 +86,33 @@ fun App() {
                 onNavigateToDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
+                },
+                onNavigateToComplaint = { vacancyId, companyId ->
+                    selectedVacancyForAction = vacancyId
+                    selectedCompanyForAction = companyId
+                    navigateTo(18)
+                },
+                onNavigateToFeedback = { vacancyId, companyId ->
+                    selectedVacancyForAction = vacancyId
+                    selectedCompanyForAction = companyId
+                    navigateTo(19)
                 }
             )
+            18 -> AddComplaintScreen(
+                api = api,
+                vacancyId = selectedVacancyForAction,
+                companyId = selectedCompanyForAction,
+                onBack = { goBack() },
+                onSuccess = { goBack() }
+            )
 
+            19 -> AddFeedbackScreen(
+                api = api,
+                vacancyId = selectedVacancyForAction,
+                companyId = selectedCompanyForAction,
+                onBack = { goBack() },
+                onSuccess = { goBack() }
+            )
             5 -> VacancyDetailScreen(
                 api = api,
                 onNavigate = globalNavigate,
@@ -118,6 +145,7 @@ fun App() {
                     responseType = "archive"
                     navigateTo(4)
                 },
+                onNavigateToComplaints = { navigateTo(16) },
                 onNavigateToChats = { navigateTo(11) },
                 onNavigateToFeedbacks = { navigateTo(13) },
                 onLogout = {
@@ -174,6 +202,28 @@ fun App() {
             14 -> FeedbackDetailScreen(
                 api = api,
                 feedbackId = selectedFeedbackId,
+                onBack = { goBack() },
+                onNavigateToCompany = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                },
+                onNavigateToVacancy = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
+            )
+            16 -> ComplaintsScreen(
+                api = api,
+                onBack = { goBack() },
+                onNavigateToComplaintDetail = { complaintId ->
+                    selectedComplaintId = complaintId
+                    navigateTo(17)
+                }
+            )
+
+            17 -> ComplaintDetailScreen(
+                api = api,
+                complaintId = selectedComplaintId,
                 onBack = { goBack() },
                 onNavigateToCompany = { companyId ->
                     selectedCompanyId = companyId
