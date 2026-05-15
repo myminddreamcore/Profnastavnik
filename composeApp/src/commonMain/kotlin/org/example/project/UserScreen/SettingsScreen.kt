@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.Student
 
@@ -33,6 +35,7 @@ fun SettingsScreen(
     onNavigateToChats: () -> Unit,
     onNavigateToFeedbacks: () -> Unit,
     onNavigateToComplaints: () -> Unit,
+    onNavigateToTariffs: () -> Unit,
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -145,6 +148,11 @@ fun SettingsScreen(
                         text = "Чат-бот",
                         icon = Icons.Default.Chat,
                         onClick = { /* TODO */ }
+                    )
+                    SettingsButton(
+                        text = "Тарифы",
+                        icon = Icons.Default.CreditCard,
+                        onClick = onNavigateToTariffs
                     )
 
                     SettingsButton(

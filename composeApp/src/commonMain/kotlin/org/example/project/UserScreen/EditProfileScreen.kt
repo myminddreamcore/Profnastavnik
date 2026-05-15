@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -27,6 +27,8 @@ import org.example.project.Models.University
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.AllUserprofile
 import org.example.project.API.MultiSelectFieldFromApi
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 import org.example.project.Models.Student
 
 @Composable

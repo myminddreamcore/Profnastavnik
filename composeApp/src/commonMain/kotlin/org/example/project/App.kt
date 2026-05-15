@@ -7,9 +7,23 @@ import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
 import org.example.project.Models.ChatDTO
 
-import MainScreen
-import RegistrationScreen
-import androidx.compose.runtime.*
+import org.example.project.UserScreen.AddComplaintScreen
+import org.example.project.UserScreen.AddFeedbackScreen
+import org.example.project.UserScreen.ChatDetailScreen
+import org.example.project.UserScreen.ChatsScreen
+import org.example.project.UserScreen.CompanyDetailScreen
+import org.example.project.UserScreen.ComplaintDetailScreen
+import org.example.project.UserScreen.ComplaintsScreen
+import org.example.project.UserScreen.DashboardStudent
+import org.example.project.UserScreen.EditProfileScreen
+import org.example.project.UserScreen.FeedbackDetailScreen
+import org.example.project.UserScreen.FeedbacksScreen
+import org.example.project.UserScreen.ResponsesScreen
+import org.example.project.UserScreen.SearchScreen
+import org.example.project.UserScreen.SettingsScreen
+import org.example.project.UserScreen.TariffsScreen
+import org.example.project.UserScreen.VacancyDetailScreen
+
 @Composable
 fun App() {
     val api = remember { ApiClient() }
@@ -22,6 +36,7 @@ fun App() {
     var selectedComplaintId by remember { mutableStateOf(0) }
     var selectedVacancyForAction by remember { mutableStateOf(0) }
     var selectedCompanyForAction by remember { mutableStateOf<Int?>(null) }
+    var showTariffs by remember { mutableStateOf(false) }
     fun navigateTo(state: Int) {
         navigationStack.add(state)
     }
@@ -72,12 +87,16 @@ fun App() {
                     responseType = type
                     navigateTo(4)
                 },
+                onNavigateToTariffs = {
+                    navigateTo(20)
+                },
+                onNavigateToChats = { navigateTo(11) },
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
                 },
-                onNavigateToChats = { navigateTo(11) }
-            )
+
+                )
 
             4 -> ResponsesScreen(
                 api = api,
@@ -105,6 +124,11 @@ fun App() {
                 onBack = { goBack() },
                 onSuccess = { goBack() }
             )
+            20 -> TariffsScreen(
+                api = api,
+                onBack = { goBack() },
+                onSuccess = { goBack() }
+            )
 
             19 -> AddFeedbackScreen(
                 api = api,
@@ -120,6 +144,9 @@ fun App() {
                 onNavigateToCompany = { companyId ->
                     selectedCompanyId = companyId
                     navigateTo(15)
+                },
+                onNavigateToTariffs = {
+                    navigateTo(20)
                 },
                 vacancyId = selectedVacancyId
             )
@@ -148,6 +175,7 @@ fun App() {
                 onNavigateToComplaints = { navigateTo(16) },
                 onNavigateToChats = { navigateTo(11) },
                 onNavigateToFeedbacks = { navigateTo(13) },
+                onNavigateToTariffs = { navigateTo(20) },
                 onLogout = {
                     navigationStack.clear()
                     navigationStack.add(0)

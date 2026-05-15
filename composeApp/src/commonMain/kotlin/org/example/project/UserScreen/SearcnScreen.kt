@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.Student
@@ -30,6 +30,8 @@ import org.example.project.Models.Skills
 import org.example.project.Models.Sferes
 import org.example.project.Models.Formats
 import org.example.project.API.MultiSelectFieldFromApi
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 
 @Composable
 fun SearchScreen(

@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -19,9 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import kotlinx.datetime.*
 import org.example.project.API.ApiClient
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.CurrentUser
 

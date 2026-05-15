@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.FeedbacksUser
 

@@ -1,4 +1,4 @@
-package org.example.project
+package org.example.project.UserScreen
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -14,13 +14,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.project.API.ApiClient
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
-import org.example.project.Models.Listresponcies
 import org.example.project.Models.Student
 import org.example.project.Models.UserVacancies
+import org.example.project.Models.Listresponcies
+import org.example.project.Models.UserPrice
 val NavItemColor = Color(0xFF5399BC)
 
 @Composable
@@ -28,25 +32,34 @@ fun DashboardStudent(
     api: ApiClient,
     onNavigate: (String) -> Unit,
     onNavigateToResponses: (String) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit,
-    onNavigateToChats: () -> Unit
+    onNavigateToTariffs: () -> Unit,
+    onNavigateToChats: () -> Unit,
+    onNavigateToVacancyDetail: (Int) -> Unit
 ) {
     var vacancies by remember { mutableStateOf<List<UserVacancies>>(emptyList()) }
     var recommendations by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
     var messageCount by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
+    var userPrice by remember { mutableStateOf<UserPrice?>(null) }
+    var isLoadingPrice by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         val user = Student(idStudent = CurrentUser.id ?: 0, emailStudent = CurrentUser.email ?: "")
         val fetchedVacancies = api.getVacancies(user)
         val fetchedRecommendations = api.getRecommendationVacancy(CurrentUser.id ?: 0)
         val fetchedMessages = api.getCountUsermessages(user)
+        val fetchedUserPrice = api.getUserPrice(CurrentUser.id ?: 0)
 
         if (fetchedVacancies != null) vacancies = fetchedVacancies
         if (fetchedRecommendations != null) recommendations = fetchedRecommendations
         if (fetchedMessages != null) messageCount = fetchedMessages
+        if (fetchedUserPrice != null) userPrice = fetchedUserPrice
+        isLoadingPrice = false
         isLoading = false
     }
+
+    val isPremium = userPrice?.idPrices != 1
+    val showRecommendations = isPremium && recommendations.isNotEmpty()
 
     Scaffold(
         bottomBar = {
@@ -67,8 +80,11 @@ fun DashboardStudent(
                 recommendations = recommendations,
                 messageCount = messageCount,
                 isLoading = isLoading,
+                isLoadingPrice = isLoadingPrice,
+                showRecommendations = showRecommendations,
                 onNavigateToResponses = onNavigateToResponses,
                 onNavigateToVacancyDetail = onNavigateToVacancyDetail,
+                onNavigateToTariffs = onNavigateToTariffs,
                 onNavigateToChats = onNavigateToChats
 
             )
@@ -82,9 +98,12 @@ fun MainDashboardContent(
     recommendations: List<Listresponcies>,
     messageCount: Int,
     isLoading: Boolean,
+    isLoadingPrice: Boolean,
+    onNavigateToChats: () -> Unit,
+    showRecommendations: Boolean,
+    onNavigateToTariffs: () -> Unit,
     onNavigateToResponses: (String) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit?,
-    onNavigateToChats: () -> Unit
+    onNavigateToVacancyDetail: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -103,7 +122,7 @@ fun MainDashboardContent(
 
             Box(
                 modifier = Modifier.clickable { onNavigateToChats() }
-            )  {
+            ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = null,
@@ -175,25 +194,56 @@ fun MainDashboardContent(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Text("Рекомендации", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
+        if (!isLoadingPrice) {
+            Text("Рекомендации", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLoading) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        } else {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (recommendations.isEmpty()) {
-                    Text(
-                        "Нет рекомендаций",
-                        color = Color.White.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(vertical = 20.dp)
-                    )
-                } else {
+            if (!showRecommendations) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB74D),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Рекомендации доступны в тарифе Профи",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Подключите премиум тариф, чтобы получать персональные рекомендации вакансий",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { onNavigateToTariffs() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Подробнее о тарифах", color = Color.White)
+                        }
+                    }
+                }
+            } else if (showRecommendations && recommendations.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     recommendations.forEach { recommendation ->
                         RecommendationCard(
                             item = recommendation,
@@ -201,6 +251,12 @@ fun MainDashboardContent(
                         )
                     }
                 }
+            } else {
+                Text(
+                    "Нет рекомендаций",
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(vertical = 20.dp)
+                )
             }
         }
 
@@ -243,6 +299,7 @@ fun RecommendationCard(item: Listresponcies, onClick: () -> Unit) {
         }
     }
 }
+
 
 
 @Composable

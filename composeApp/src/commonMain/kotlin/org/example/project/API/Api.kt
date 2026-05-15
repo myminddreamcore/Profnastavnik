@@ -35,7 +35,10 @@ import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.FeedbacksUserDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
+import org.example.project.Models.PricesForUser
+import org.example.project.Models.Response
 import org.example.project.Models.Sferes
+import org.example.project.Models.UserPrice
 
 class ApiClient {
     private val client = HttpClient {
@@ -48,6 +51,61 @@ class ApiClient {
     }
 
     private val BASE_URL = "http://10.0.2.2:5131/api/"
+    suspend fun getUserResponseCount(userId: Int): Int? {
+        return try {
+            val url = "${BASE_URL}User/GetUserCountResponce/${userId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                jsonString.toIntOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getAllPrices(): List<PricesForUser>? {
+        return try {
+            val url = "${BASE_URL}UserPrices/GetAllPrices"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<PricesForUser>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun addNewUserPrice(userPrice: UserPrice): UserPrice? {
+        return try {
+            val url = "${BASE_URL}UserPrices/AddNewUserPrice"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(userPrice)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<UserPrice>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     suspend fun getChatMessagesCompany(userId: Int, companyId: Int, vacancyId: Int): List<ChatDTO>? {
         return try {
             val url = "${BASE_URL}User/GetChatMessagesCompany/${userId}/${companyId}/${vacancyId}"
@@ -219,6 +277,62 @@ class ApiClient {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+    suspend fun getCompanyFeedback(companyId: Int): List<FeedbacksUser>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyFeedback/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<FeedbacksUser>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun addResponse(response: Response): Response? {
+        return try {
+            val url = "${BASE_URL}Responces/AddResponse"
+            println(url)
+            val responseBody = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(response)
+            }
+            println(responseBody)
+            if (responseBody.status.value in 200..299) {
+                val jsonString = responseBody.bodyAsText()
+                Json.decodeFromString<Response>(jsonString)
+            } else {
+                val error = responseBody.bodyAsText()
+                println("Error: $error")
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getUserPrice(userId: Int): UserPrice? {
+        return try {
+            val url = "${BASE_URL}User/GetUserPrice/${userId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<UserPrice>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
     suspend fun addFeedback(feedback: FeedbacksUser): FeedbacksUser? {
