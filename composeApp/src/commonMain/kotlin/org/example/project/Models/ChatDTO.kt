@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class ChatDTO(
     val chat: Chat,
     val nameCompany: String? = null,
-    val nameVacancy: String? = null
+    val nameVacancy: String? = null,
+    val fioUser: String? = null,
 )
 
 @Serializable

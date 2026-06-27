@@ -26,16 +26,22 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
+import org.example.project.Models.Adress
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.Complaint
 import org.example.project.Models.ComplaintDTO
+import org.example.project.Models.CreateVacancyDTO
+import org.example.project.Models.Currency
+import org.example.project.Models.Director
 import org.example.project.Models.DirectorDTO
 import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.FeedbacksUserDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
+import org.example.project.Models.MoneyType
 import org.example.project.Models.PricesForUser
+import org.example.project.Models.ResponciesDTO
 import org.example.project.Models.Response
 import org.example.project.Models.Sferes
 import org.example.project.Models.UserPrice
@@ -462,6 +468,95 @@ class ApiClient {
             null
         }
     }
+    suspend fun getMoneyTypes(): List<MoneyType>? {
+        return try {
+            val url = "${BASE_URL}MoneyTypes/GetMoneyTypes"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<MoneyType>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getCurrencies(): List<Currency>? {
+        return try {
+            val url = "${BASE_URL}Currency/GetCurrency"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Currency>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun createVacancy(vacancy: CreateVacancyDTO): Boolean {
+        return try {
+            val url = "${BASE_URL}Vacancy/CreateVacancy"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(vacancy)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                true
+            } else {
+                val error = response.bodyAsText()
+                println("Error: $error")
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun getUserById(id: Int): Student? {
+        return try {
+            val url = "${BASE_URL}User/GetUserById/${id}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<Student>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompany(user: User): Director? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompany/${user.emailUser}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<Director>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     suspend fun isFavourite(id_vacancy: Int, id_user:Int): Boolean? {
         return try {
             val url = "${BASE_URL}User/IfFavoutity/${id_user}/${id_vacancy}"
@@ -637,6 +732,54 @@ class ApiClient {
             e.printStackTrace()
             null
         }
+    }
+    suspend fun getCountCompanymessages(user: Director): Int? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyMessages/${user.idDirector}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<Int>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompanyVacancies(user: Director): List<Listresponcies>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyVacancies/${user.idDirector}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<List<Listresponcies>>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } as List<Listresponcies>?
+    }
+    suspend fun getCompanyResponcies(user: Director): List<ResponciesDTO>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyResponcies/${user.idDirector}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<List<ResponciesDTO>>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } as List<ResponciesDTO>?
     }
 
 

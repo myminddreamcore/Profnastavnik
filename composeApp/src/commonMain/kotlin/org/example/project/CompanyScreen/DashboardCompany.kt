@@ -1,0 +1,387 @@
+package org.example.project.CompanyScreen
+
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.example.project.API.ApiClient
+import org.example.project.BgGradientEnd
+import org.example.project.BgGradientStart
+import org.example.project.Models.CurrentUser
+import org.example.project.Models.Director
+import org.example.project.Models.Listresponcies
+import org.example.project.Models.ResponciesDTO
+import org.example.project.UserScreen.CustomBottomNavigation
+
+@Composable
+fun DashboardCompany(
+    api: ApiClient,
+    onNavigate: (String) -> Unit,
+    onNavigateToChats: () -> Unit,
+    onCreateVacancy: () -> Unit,
+    onViewResponses: () -> Unit,
+    onNavigateToVacancyDetail: (Int) -> Unit,
+    onNavigateToUserProfile: (Int) -> Unit
+) {
+    var vacancies by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
+    var responses by remember { mutableStateOf<List<ResponciesDTO>>(emptyList()) }
+    var messageCount by remember { mutableStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val director = Director(idDirector = CurrentUser.id ?: 0)
+
+        val fetchedMessages = api.getCountCompanymessages(director)
+        val fetchedVacancies = api.getCompanyVacancies(director)
+        val fetchedResponses = api.getCompanyResponcies(director)
+
+        if (fetchedMessages != null) messageCount = fetchedMessages
+        if (fetchedVacancies != null) vacancies = fetchedVacancies
+        if (fetchedResponses != null) responses = fetchedResponses
+        isLoading = false
+    }
+
+    Scaffold(
+        bottomBar = {
+            CustomBottomNavigation(currentScreen = "Дашборд") { target ->
+                onNavigate(target)
+            }
+        },
+        containerColor = Color.Transparent
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
+                .padding(paddingValues)
+        ) {
+            CompanyDashboardContent(
+                vacancies = vacancies,
+                responses = responses,
+                messageCount = messageCount,
+                isLoading = isLoading,
+                onNavigateToChats = onNavigateToChats,
+                onCreateVacancy = onCreateVacancy,
+                onViewResponses = onViewResponses,
+                onNavigateToVacancyDetail = onNavigateToVacancyDetail,
+                onNavigateToUserProfile = onNavigateToUserProfile
+            )
+        }
+    }
+}
+
+@Composable
+fun CompanyDashboardContent(
+    vacancies: List<Listresponcies>,
+    responses: List<ResponciesDTO>,
+    messageCount: Int,
+    isLoading: Boolean,
+    onNavigateToChats: () -> Unit,
+    onCreateVacancy: () -> Unit,
+    onViewResponses: () -> Unit,
+    onNavigateToVacancyDetail: (Int) -> Unit,
+    onNavigateToUserProfile: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("ПРОФНаставник", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+            Box(
+                modifier = Modifier.clickable { onNavigateToChats() }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+                if (messageCount > 0) {
+                    Surface(
+                        color = Color(0xFFB71C1C),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .size(10.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 2.dp)
+                    ) {}
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CompanyActionItem(
+                label = "Создать вакансию",
+                icon = Icons.Default.NoteAdd,
+                gradientColors = listOf(Color(0xFF4A90E2), Color(0xFF7B61FF)),
+                onClick = onCreateVacancy,
+                modifier = Modifier.weight(1f)
+            )
+
+            CompanyActionItem(
+                label = "Посмотреть отклики",
+                icon = Icons.Default.Assignment,
+                gradientColors = listOf(Color(0xFF4A90E2), Color(0xFF00E676)),
+                onClick = onViewResponses,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Text("Мои вакансии", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLoading) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color.White)
+            }
+        } else {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (vacancies.isEmpty()) {
+                    Text("У вас пока нет активных вакансий", color = Color.White.copy(alpha = 0.6f))
+                } else {
+                    vacancies.forEach { vacancy ->
+                        CompanyVacancyCard(
+                            item = vacancy,
+                            onClick = { onNavigateToVacancyDetail(vacancy.idVacancy ?: 0) }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Text("Отклики", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (isLoading) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color.White)
+            }
+        } else {
+            if (responses.isEmpty()) {
+                Text(
+                    "Нет откликов на ваши вакансии",
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(vertical = 20.dp)
+                )
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    responses.forEach { response ->
+                        ResponseCard(
+                            item = response,
+                            onViewProfile = { onNavigateToUserProfile(response.idUser ?: 0) },
+                            onViewVacancy = { onNavigateToVacancyDetail(response.idVacancy ?: 0) }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+    }
+}
+
+@Composable
+fun CompanyActionItem(
+    label: String,
+    icon: ImageVector,
+    gradientColors: List<Color>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(100.dp)
+            .background(brush = Brush.verticalGradient(gradientColors), shape = RoundedCornerShape(24.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, tint = Color.White, modifier = Modifier.size(36.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(label, color = Color.White, fontSize = 10.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+@Composable
+fun CompanyVacancyCard(item: Listresponcies, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(170.dp)
+            .height(190.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.15f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                item.nameVacancy ?: "Вакансия",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 2
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "${item.zenStart} - ${item.zenEnd} ${item.currency}",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                "Длительность: ${item.time}",
+                color = Color(0xFF5399BC),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ResponseCard(
+    item: ResponciesDTO,
+    onViewProfile: () -> Unit,
+    onViewVacancy: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                item.fIO ?: "Студент",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                item.nameVacancy ?: "Вакансия",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                item.description ?: "Нет описания",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 13.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                GradientButton(
+                    text = "Профиль",
+                    icon = Icons.Default.Person,
+                    onClick = onViewProfile,
+                    gradient = listOf(Color(0xFF4A90E2), Color(0xFF7B61FF)),
+                    modifier = Modifier.weight(1f)
+                )
+
+                GradientButton(
+                    text = "Вакансия",
+                    icon = Icons.Default.Work,
+                    onClick = onViewVacancy,
+                    gradient = listOf(Color(0xFF4A90E2), Color(0xFF7B61FF)),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+@Composable
+fun GradientButton(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    gradient: List<Color>,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp)),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.horizontalGradient(gradient),
+                    shape = RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}

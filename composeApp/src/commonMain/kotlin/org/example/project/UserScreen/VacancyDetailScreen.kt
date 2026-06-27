@@ -30,7 +30,25 @@ import org.example.project.Models.CurrentUser
 import org.example.project.Models.Response
 import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.UserPrice
-
+@Composable
+fun InfoBadge(text: String) {
+    Box(
+        modifier = Modifier
+            .background(
+                Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            color = Color.White,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
 @Composable
 fun VacancyDetailScreen(
     api: ApiClient,
@@ -38,7 +56,8 @@ fun VacancyDetailScreen(
     onBack: () -> Unit,
     onNavigateToCompany: (Int) -> Unit,
     onNavigateToTariffs: () -> Unit,
-    vacancyId: Int = 0
+    vacancyId: Int = 0,
+    isCompany: Boolean = false
 ) {
     var detail by remember { mutableStateOf<CardVacancy?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -65,8 +84,10 @@ fun VacancyDetailScreen(
             val result = api.getVacancy(vacancyId)
             if (result != null) {
                 detail = result
-                val favStatus = api.isFavourite(vacancyId, userId)
-                isFav = favStatus ?: false
+                if (!isCompany) {
+                    val favStatus = api.isFavourite(vacancyId, userId)
+                    isFav = favStatus ?: false
+                }
                 val companyId = result.companyId
                 if (companyId != null) {
                     val reviewsResult = api.getCompanyFeedback(companyId)
@@ -77,17 +98,20 @@ fun VacancyDetailScreen(
             }
         }
 
-        val price = api.getUserPrice(userId)
-        userPrice = price
-        if (price?.idPrices == 1) {
-            val count = api.getUserResponseCount(userId)
-            responseCount = count ?: 0
+        if (!isCompany) {
+            val price = api.getUserPrice(userId)
+            userPrice = price
+            if (price?.idPrices == 1) {
+                val count = api.getUserResponseCount(userId)
+                responseCount = count ?: 0
+            }
         }
         isLoadingPrice = false
         isLoading = false
     }
 
     fun checkCanRespond(): Boolean {
+        if (isCompany) return false
         val price = userPrice
         return if (price?.idPrices == 1) {
             responseCount < 5
@@ -97,6 +121,8 @@ fun VacancyDetailScreen(
     }
 
     fun sendResponse() {
+        if (isCompany) return
+
         if (coverLetter.isBlank()) {
             errorMessage = "Введите сопроводительное письмо"
             return
@@ -188,34 +214,38 @@ fun VacancyDetailScreen(
                                 fontWeight = FontWeight.Bold
                             )
 
-                            IconButton(
-                                onClick = {
-                                    if (!isProcessingFav && v != null) {
-                                        isProcessingFav = true
-                                        scope.launch {
-                                            val success = if (isFav) {
-                                                api.deletefavourites(v.idVacancy, userId)
-                                            } else {
-                                                api.addfavourites(v.idVacancy, userId)
+                            if (!isCompany) {
+                                IconButton(
+                                    onClick = {
+                                        if (!isProcessingFav && v != null) {
+                                            isProcessingFav = true
+                                            scope.launch {
+                                                val success = if (isFav) {
+                                                    api.deletefavourites(v.idVacancy, userId)
+                                                } else {
+                                                    api.addfavourites(v.idVacancy, userId)
+                                                }
+                                                if (success == true) {
+                                                    isFav = !isFav
+                                                }
+                                                isProcessingFav = false
                                             }
-                                            if (success == true) {
-                                                isFav = !isFav
-                                            }
-                                            isProcessingFav = false
                                         }
-                                    }
-                                },
-                                modifier = Modifier.background(
-                                    Color.White.copy(alpha = 0.1f),
-                                    CircleShape
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Избранное",
-                                    tint = if (isFav) Color.Red else Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                    },
+                                    modifier = Modifier.background(
+                                        Color.White.copy(alpha = 0.1f),
+                                        CircleShape
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Избранное",
+                                        tint = if (isFav) Color.Red else Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            } else {
+                                Box(modifier = Modifier.size(48.dp))
                             }
                         }
                     }
@@ -445,62 +475,68 @@ fun VacancyDetailScreen(
                         }
                     }
 
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (userPrice?.idPrices == 1 && !isLoadingPrice) {
-                            val remaining = 5 - responseCount
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        if (remaining > 0) Icons.Default.Info else Icons.Default.Warning,
-                                        null,
-                                        tint = if (remaining > 0) Color(0xFF5399BC) else Color(0xFFFF9800),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        if (remaining > 0) "Осталось откликов в этом месяце: $remaining из 5"
-                                        else "Лимит откликов исчерпан. Перейдите на тариф Профи",
-                                        color = if (remaining > 0) Color.White.copy(alpha = 0.8f) else Color(0xFFFF9800),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
+                    if (!isCompany) {
+                        item {
                             Spacer(modifier = Modifier.height(8.dp))
-                        }
 
-                        GradientResponseButton(
-                            text = if (userPrice?.idPrices == 1 && responseCount >= 5) "Откликнуться (лимит исчерпан)" else "Откликнуться",
-                            icon = Icons.Default.Send,
-                            onClick = {
-                                if (userPrice?.idPrices == 1 && responseCount >= 5) {
-                                    showLimitDialog = true
-                                } else {
-                                    showResponseDialog = true
+                            if (userPrice?.idPrices == 1 && !isLoadingPrice) {
+                                val remaining = 5 - responseCount
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            if (remaining > 0) Icons.Default.Info else Icons.Default.Warning,
+                                            null,
+                                            tint = if (remaining > 0) Color(0xFF5399BC) else Color(0xFFFF9800),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            if (remaining > 0) "Осталось откликов в этом месяце: $remaining из 5"
+                                            else "Лимит откликов исчерпан. Перейдите на тариф Профи",
+                                            color = if (remaining > 0) Color.White.copy(alpha = 0.8f) else Color(0xFFFF9800),
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
-                            },
-                            gradient = if (userPrice?.idPrices == 1 && responseCount >= 5)
-                                listOf(Color(0xFF9E9E9E), Color(0xFF757575))
-                            else
-                                listOf(Color(0xFF4A90E2), Color(0xFF7B61FF))
-                        )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
 
-                        Spacer(modifier = Modifier.height(40.dp))
+                            GradientResponseButton(
+                                text = if (userPrice?.idPrices == 1 && responseCount >= 5) "Откликнуться (лимит исчерпан)" else "Откликнуться",
+                                icon = Icons.Default.Send,
+                                onClick = {
+                                    if (userPrice?.idPrices == 1 && responseCount >= 5) {
+                                        showLimitDialog = true
+                                    } else {
+                                        showResponseDialog = true
+                                    }
+                                },
+                                gradient = if (userPrice?.idPrices == 1 && responseCount >= 5)
+                                    listOf(Color(0xFF9E9E9E), Color(0xFF757575))
+                                else
+                                    listOf(Color(0xFF4A90E2), Color(0xFF7B61FF))
+                            )
+
+                            Spacer(modifier = Modifier.height(40.dp))
+                        }
+                    } else {
+                        item {
+                            Spacer(modifier = Modifier.height(40.dp))
+                        }
                     }
                 }
             }
         }
     }
 
-    if (showResponseDialog) {
+    if (!isCompany && showResponseDialog) {
         AlertDialog(
             onDismissRequest = {
                 showResponseDialog = false
@@ -635,7 +671,7 @@ fun VacancyDetailScreen(
         )
     }
 
-    if (showLimitDialog) {
+    if (!isCompany && showLimitDialog) {
         AlertDialog(
             onDismissRequest = { showLimitDialog = false },
             title = {
@@ -725,26 +761,6 @@ fun ReviewCard(review: FeedbacksUser) {
                 lineHeight = 18.sp
             )
         }
-    }
-}
-
-@Composable
-fun InfoBadge(text: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                Color.White.copy(alpha = 0.2f),
-                RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text,
-            color = Color.White,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
-        )
     }
 }
 

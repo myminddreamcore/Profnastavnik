@@ -22,7 +22,7 @@ val BgGradientStart = Color(0xFF388EAB)
 val BgGradientEnd = Color(0xFFD1E4E9)
 val CardBg = Color(0xFFFFFFFF).copy(alpha = 0.2f)
 @Composable
-fun LoginScreen(onSuccess: () -> Unit) {
+fun LoginScreen(onSuccess: () -> Unit, onCompanySuccess : () ->Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
@@ -120,7 +120,14 @@ fun LoginScreen(onSuccess: () -> Unit) {
                                                 }
                                                 else if (result.roleUser == "Работодатель")
                                                 {
-
+                                                    val userRequest2 =
+                                                        User(emailUser = email)
+                                                    val result = api.getCompany(userRequest2)
+                                                    CurrentUser.id = result?.idDirector
+                                                    CurrentUser.email = result?.emailDirector
+                                                    CurrentUser.role = "Работодатель"
+                                                    CurrentUser.isAuthorized = true
+                                                    onCompanySuccess()
                                                 }
                                                 else if (result.roleUser == "Администратор")
                                                 {

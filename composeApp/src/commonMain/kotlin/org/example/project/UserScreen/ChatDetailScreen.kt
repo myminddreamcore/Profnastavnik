@@ -27,7 +27,6 @@ import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.CurrentUser
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDetailScreen(
@@ -35,7 +34,8 @@ fun ChatDetailScreen(
     chatDTO: ChatDTO,
     onBack: () -> Unit,
     onNavigateToVacancy: (Int) -> Unit,
-    onNavigateToCompany: (Int) -> Unit
+    onNavigateToCompany: (Int) -> Unit,
+    isCompany: Boolean = false  // ← Добавили параметр
 ) {
     val scope = rememberCoroutineScope()
     var messages by remember { mutableStateOf<List<ChatDTO>>(emptyList()) }
@@ -81,16 +81,19 @@ fun ChatDetailScreen(
             isSending = true
             val userId = CurrentUser.id ?: 0
 
+            // Определяем отправителя в зависимости от роли
+            val sender = if (isCompany) "Работодатель" else "Стажер"
+
             val newMessage = Chat(
                 idChat = 0,
-                idUser = userId,
+                idUser = if (!isCompany) userId else null,
                 textChat = inputText,
                 statusChat = "Отправлено",
                 sendAtChat = null,
                 idVacancy = chat.idVacancy,
-                idDirector = chat.idDirector,
-                emailAdmin = chat.emailAdmin,
-                senderChat = "Стажер"
+                idDirector = if (isCompany) userId else chat.idDirector, // Если компания, то она - директор
+                emailAdmin = if (isCompany) null else chat.emailAdmin,   // Если компания, emailAdmin не нужен
+                senderChat = sender
             )
 
             val success = api.sendMessage(newMessage)
@@ -116,7 +119,12 @@ fun ChatDetailScreen(
                         }
                     ) {
                         Text(
-                            name,
+                            if (isCompany) {
+                                // Если компания смотрит - показываем ФИО студента
+                                chatDTO.fioUser ?: name
+                            } else {
+                                name
+                            },
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -166,7 +174,13 @@ fun ChatDetailScreen(
                         items(messages.reversed()) { msg ->
                             MessageBubble(
                                 message = msg.chat,
-                                isMe = msg.chat.senderChat == "Стажер"
+                                isMe = if (isCompany) {
+                                    // Если компания - свои сообщения от "Работодатель"
+                                    msg.chat.senderChat == "Работодатель"
+                                } else {
+                                    // Если студент - свои сообщения от "Стажер"
+                                    msg.chat.senderChat == "Стажер"
+                                }
                             )
                         }
                     }
@@ -218,6 +232,7 @@ fun ChatDetailScreen(
         }
     }
 }
+
 @Composable
 fun MessageBubble(
     message: Chat,

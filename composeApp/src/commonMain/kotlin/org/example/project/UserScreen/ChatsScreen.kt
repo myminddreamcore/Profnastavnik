@@ -29,7 +29,8 @@ import org.example.project.Models.CurrentUser
 fun ChatsScreen(
     api: ApiClient,
     onBack: () -> Unit,
-    onNavigateToChat: (ChatDTO) -> Unit
+    onNavigateToChat: (ChatDTO) -> Unit,
+    isCompany: Boolean = false
 ) {
     var chats by remember { mutableStateOf<List<ChatDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -48,7 +49,6 @@ fun ChatsScreen(
             .fillMaxSize()
             .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
     ) {
-        Spacer(modifier = Modifier.height(20.dp))
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
@@ -99,7 +99,8 @@ fun ChatsScreen(
                     items(chats) { chatDTO ->
                         ChatCard(
                             chatDTO = chatDTO,
-                            onClick = { onNavigateToChat(chatDTO) }
+                            onClick = { onNavigateToChat(chatDTO) },
+                            isCompany = isCompany
                         )
                     }
                 }
@@ -107,13 +108,20 @@ fun ChatsScreen(
         }
     }
 }
+
 @Composable
 fun ChatCard(
     chatDTO: ChatDTO,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isCompany: Boolean = false
 ) {
     val chat = chatDTO.chat
-    val name: String = chatDTO.nameCompany ?: chatDTO.nameVacancy ?: chat.emailAdmin ?: "Чат"
+
+    val name: String = if (isCompany) {
+        chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
+    } else {
+        chatDTO.nameCompany ?: chatDTO.nameVacancy ?: chat.emailAdmin ?: "Чат"
+    }
 
     val isFromEmployer = chat.senderChat == "Работодатель" || chat.senderChat == "Администратор"
     val isFromStudent = chat.senderChat == "Стажер"
@@ -201,7 +209,6 @@ fun ChatCard(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-
                         isFromStudent && isSent -> {
                             Icon(
                                 Icons.Default.Done,
@@ -248,8 +255,6 @@ fun ChatCard(
                         }
                     }
                 }
-
-
             }
 
             Icon(
@@ -261,6 +266,7 @@ fun ChatCard(
         }
     }
 }
+
 fun formatChatDate(dateString: String?): String {
     if (dateString.isNullOrBlank()) return ""
 
