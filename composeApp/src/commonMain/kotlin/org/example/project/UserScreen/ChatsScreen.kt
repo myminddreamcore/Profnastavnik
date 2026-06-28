@@ -36,7 +36,11 @@ fun ChatsScreen(
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        val userId = CurrentUser.id ?: 0
+        val userId = if (isCompany) {
+            CurrentUser.id ?: 0
+        } else {
+            CurrentUser.id ?: 0
+        }
         val result = api.getUserChats(userId)
         if (result != null) {
             chats = result
@@ -125,6 +129,11 @@ fun ChatCard(
 
     val isFromEmployer = chat.senderChat == "Работодатель" || chat.senderChat == "Администратор"
     val isFromStudent = chat.senderChat == "Стажер"
+    val isFromMe = if (isCompany) {
+        isFromEmployer
+    } else {
+        isFromStudent
+    }
 
     val isRead = chat.statusChat == "Прочитано"
     val isSent = chat.statusChat == "Отправлено"
@@ -192,7 +201,7 @@ fun ChatCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     when {
-                        isFromEmployer && !isRead -> {
+                        !isFromMe && !isRead -> {
                             Surface(
                                 color = Color(0xFF5399BC),
                                 shape = CircleShape,
@@ -209,7 +218,7 @@ fun ChatCard(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        isFromStudent && isSent -> {
+                        isFromMe && isSent -> {
                             Icon(
                                 Icons.Default.Done,
                                 null,
@@ -226,7 +235,7 @@ fun ChatCard(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        isFromStudent && isRead -> {
+                        isFromMe && isRead -> {
                             Icon(
                                 Icons.Default.DoneAll,
                                 null,

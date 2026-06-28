@@ -503,6 +503,35 @@ class ApiClient {
             null
         }
     }
+    suspend fun getResponsesByCompany(companyId: Int): List<Response>? {
+        return try {
+            val url = "${BASE_URL}Responces/GetResponsesByCompany/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Response>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun updateResponseStatus(responseId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Responces/UpdateResponseStatus/${responseId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     suspend fun createVacancy(vacancy: CreateVacancyDTO): Boolean {
         return try {

@@ -5,6 +5,7 @@ import RegistrationScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
+import org.example.project.CompanyScreen.CompanyResponsesScreen
 import org.example.project.CompanyScreen.CreateVacancyScreen
 import org.example.project.CompanyScreen.DashboardCompany
 import org.example.project.Models.ChatDTO
@@ -25,59 +26,57 @@ fun App() {
     var userRole by remember { mutableStateOf("student") }
     var previousScreen by remember { mutableStateOf(0) }
     var selectedUserId by remember { mutableStateOf(0) }
+
+    val navigationStack = remember { mutableStateListOf(0) }
+
     fun navigateTo(state: Int) {
-        previousScreen = screenState
-        screenState = state
+        navigationStack.add(state)
     }
 
     fun goBack() {
-        screenState = previousScreen
+        if (navigationStack.size > 1) {
+            navigationStack.removeLast()
+        }
     }
+
+    val currentState = navigationStack.last()
 
     val globalNavigate = { target: String ->
         when (target) {
             "Дашборд" -> {
-                previousScreen = screenState
-                screenState = if (userRole == "company") 21 else 3
+                navigationStack.clear()
+                navigationStack.add(if (userRole == "company") 21 else 3)
             }
             "Поиск" -> {
-                previousScreen = screenState
-                screenState = 7
+                navigationStack.clear()
+                navigationStack.add(7)
             }
             "Профиль" -> {
-                previousScreen = screenState
-                screenState = 10
+                navigationStack.clear()
+                navigationStack.add(10)
             }
             "Настройки" -> {
-                previousScreen = screenState
-                screenState = 8
+                navigationStack.clear()
+                navigationStack.add(8)
             }
         }
     }
 
     MaterialTheme {
-        when (screenState) {
+        when (currentState) {
             0 -> MainScreen(
-                onNavigateToLogin = {
-                    previousScreen = 0
-                    screenState = 1
-                },
-                onNavigateToReg = {
-                    previousScreen = 0
-                    screenState = 2
-                }
+                onNavigateToLogin = { navigateTo(1) },
+                onNavigateToReg = { navigateTo(2) }
             )
 
             1 -> LoginScreen(
                 onSuccess = {
                     userRole = "student"
-                    previousScreen = 1
-                    screenState = 3
+                    navigateTo(3)
                 },
                 onCompanySuccess = {
                     userRole = "company"
-                    previousScreen = 1
-                    screenState = 21
+                    navigateTo(21)
                 }
             )
             2 -> RegistrationScreen()
@@ -87,21 +86,13 @@ fun App() {
                 onNavigate = globalNavigate,
                 onNavigateToResponses = { type ->
                     responseType = type
-                    previousScreen = 3
-                    screenState = 4
+                    navigateTo(4)
                 },
-                onNavigateToTariffs = {
-                    previousScreen = 3
-                    screenState = 20
-                },
-                onNavigateToChats = {
-                    previousScreen = 3
-                    screenState = 11
-                },
+                onNavigateToTariffs = { navigateTo(20) },
+                onNavigateToChats = { navigateTo(11) },
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 3
-                    screenState = 5
+                    navigateTo(5)
                 }
             )
 
@@ -111,20 +102,17 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 4
-                    screenState = 5
+                    navigateTo(5)
                 },
                 onNavigateToComplaint = { vacancyId, companyId ->
                     selectedVacancyForAction = vacancyId
                     selectedCompanyForAction = companyId
-                    previousScreen = 4
-                    screenState = 18
+                    navigateTo(18)
                 },
                 onNavigateToFeedback = { vacancyId, companyId ->
                     selectedVacancyForAction = vacancyId
                     selectedCompanyForAction = companyId
-                    previousScreen = 4
-                    screenState = 19
+                    navigateTo(19)
                 }
             )
 
@@ -134,13 +122,9 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToCompany = { companyId ->
                     selectedCompanyId = companyId
-                    previousScreen = 5
-                    screenState = 15
+                    navigateTo(15)
                 },
-                onNavigateToTariffs = {
-                    previousScreen = 5
-                    screenState = 20
-                },
+                onNavigateToTariffs = { navigateTo(20) },
                 vacancyId = selectedVacancyId,
                 isCompany = userRole == "company"
             )
@@ -150,13 +134,9 @@ fun App() {
                 onNavigate = globalNavigate,
                 onNavigateToDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 7
-                    screenState = 5
+                    navigateTo(5)
                 },
-                onNavigateToChats = {
-                    previousScreen = 7
-                    screenState = 11
-                }
+                onNavigateToChats = { navigateTo(11) }
             )
 
             8 -> SettingsScreen(
@@ -164,32 +144,19 @@ fun App() {
                 onNavigate = globalNavigate,
                 onNavigateToFavourites = {
                     responseType = "favourites"
-                    previousScreen = 8
-                    screenState = 4
+                    navigateTo(4)
                 },
                 onNavigateToArchive = {
                     responseType = "archive"
-                    previousScreen = 8
-                    screenState = 4
+                    navigateTo(4)
                 },
-                onNavigateToComplaints = {
-                    previousScreen = 8
-                    screenState = 16
-                },
-                onNavigateToChats = {
-                    previousScreen = 8
-                    screenState = 11
-                },
-                onNavigateToFeedbacks = {
-                    previousScreen = 8
-                    screenState = 13
-                },
-                onNavigateToTariffs = {
-                    previousScreen = 8
-                    screenState = 20
-                },
+                onNavigateToComplaints = { navigateTo(16) },
+                onNavigateToChats = { navigateTo(11) },
+                onNavigateToFeedbacks = { navigateTo(13) },
+                onNavigateToTariffs = { navigateTo(20) },
                 onLogout = {
-                    screenState = 0
+                    navigationStack.clear()
+                    navigationStack.add(0)
                 }
             )
 
@@ -204,8 +171,7 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToChat = { chat ->
                     selectedChat = chat
-                    previousScreen = 11
-                    screenState = 12
+                    navigateTo(12)
                 },
                 isCompany = userRole == "company"
             )
@@ -220,13 +186,11 @@ fun App() {
                         onBack = { goBack() },
                         onNavigateToVacancy = { vacancyId ->
                             selectedVacancyId = vacancyId
-                            previousScreen = 12
-                            screenState = 5
+                            navigateTo(5)
                         },
                         onNavigateToCompany = { companyId ->
                             selectedCompanyId = companyId
-                            previousScreen = 12
-                            screenState = 15
+                            navigateTo(15)
                         },
                         isCompany = userRole == "company"
                     )
@@ -238,8 +202,7 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToFeedbackDetail = { feedbackId ->
                     selectedFeedbackId = feedbackId
-                    previousScreen = 13
-                    screenState = 14
+                    navigateTo(14)
                 }
             )
 
@@ -249,13 +212,11 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToCompany = { companyId ->
                     selectedCompanyId = companyId
-                    previousScreen = 14
-                    screenState = 15
+                    navigateTo(15)
                 },
                 onNavigateToVacancy = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 14
-                    screenState = 5
+                    navigateTo(5)
                 }
             )
 
@@ -270,8 +231,7 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToComplaintDetail = { complaintId ->
                     selectedComplaintId = complaintId
-                    previousScreen = 16
-                    screenState = 17
+                    navigateTo(17)
                 }
             )
 
@@ -281,13 +241,11 @@ fun App() {
                 onBack = { goBack() },
                 onNavigateToCompany = { companyId ->
                     selectedCompanyId = companyId
-                    previousScreen = 17
-                    screenState = 15
+                    navigateTo(15)
                 },
                 onNavigateToVacancy = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 17
-                    screenState = 5
+                    navigateTo(5)
                 }
             )
 
@@ -316,26 +274,19 @@ fun App() {
             21 -> DashboardCompany(
                 api = api,
                 onNavigate = globalNavigate,
-                onNavigateToChats = {
-                    previousScreen = 21
-                    screenState = 11
-                },
-                onCreateVacancy = {
-                    navigateTo(23)
-                },
-                onViewResponses = {
-                    println("Посмотреть отклики")
-                },
+                onNavigateToChats = { navigateTo(11) },
+                onCreateVacancy = { navigateTo(23) },
+                onViewResponses = { navigateTo(24) },
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
-                    previousScreen = 21
-                    screenState = 5
+                    navigateTo(5)
                 },
                 onNavigateToUserProfile = { userId ->
                     selectedUserId = userId
                     navigateTo(22)
                 }
             )
+
             22 -> UserProfileScreen(
                 api = api,
                 userId = selectedUserId,
@@ -344,10 +295,26 @@ fun App() {
                     println("Посмотреть резюме пользователя $selectedUserId")
                 }
             )
+
             23 -> CreateVacancyScreen(
                 api = api,
                 onBack = { goBack() },
                 onSuccess = { goBack() }
+            )
+
+            24 -> CompanyResponsesScreen(
+                api = api,
+                onBack = { goBack() },
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                },
+                onResponseUpdated = {
+                }
             )
         }
     }

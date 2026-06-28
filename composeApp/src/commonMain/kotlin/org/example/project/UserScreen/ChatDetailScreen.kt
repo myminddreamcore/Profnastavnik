@@ -35,7 +35,7 @@ fun ChatDetailScreen(
     onBack: () -> Unit,
     onNavigateToVacancy: (Int) -> Unit,
     onNavigateToCompany: (Int) -> Unit,
-    isCompany: Boolean = false  // ← Добавили параметр
+    isCompany: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     var messages by remember { mutableStateOf<List<ChatDTO>>(emptyList()) }
@@ -52,7 +52,13 @@ fun ChatDetailScreen(
     fun loadMessages() {
         scope.launch {
             isLoading = true
-            val userId = CurrentUser.id ?: 0
+
+            val userId = if (isCompany) {
+                chat.idUser ?: 0
+            } else {
+                CurrentUser.id ?: 0
+            }
+
             val vacancyId = chat.idVacancy ?: 0
 
             val result = if (isCompanyChat && recipientId != null) {
@@ -79,20 +85,24 @@ fun ChatDetailScreen(
 
         scope.launch {
             isSending = true
-            val userId = CurrentUser.id ?: 0
 
-            // Определяем отправителя в зависимости от роли
+            val userId = if (isCompany) {
+                chat.idUser ?: 0
+            } else {
+                CurrentUser.id ?: 0
+            }
+
             val sender = if (isCompany) "Работодатель" else "Стажер"
 
             val newMessage = Chat(
                 idChat = 0,
-                idUser = if (!isCompany) userId else null,
+                idUser = userId,
                 textChat = inputText,
                 statusChat = "Отправлено",
                 sendAtChat = null,
                 idVacancy = chat.idVacancy,
-                idDirector = if (isCompany) userId else chat.idDirector, // Если компания, то она - директор
-                emailAdmin = if (isCompany) null else chat.emailAdmin,   // Если компания, emailAdmin не нужен
+                idDirector = if (isCompany) CurrentUser.id else chat.idDirector,
+                emailAdmin = if (!isCompanyChat) chat.emailAdmin else null,
                 senderChat = sender
             )
 
@@ -120,7 +130,6 @@ fun ChatDetailScreen(
                     ) {
                         Text(
                             if (isCompany) {
-                                // Если компания смотрит - показываем ФИО студента
                                 chatDTO.fioUser ?: name
                             } else {
                                 name
@@ -172,15 +181,15 @@ fun ChatDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(messages.reversed()) { msg ->
+                            val isMe = if (isCompany) {
+                                msg.chat.senderChat == "Работодатель"
+                            } else {
+                                msg.chat.senderChat == "Стажер"
+                            }
+
                             MessageBubble(
                                 message = msg.chat,
-                                isMe = if (isCompany) {
-                                    // Если компания - свои сообщения от "Работодатель"
-                                    msg.chat.senderChat == "Работодатель"
-                                } else {
-                                    // Если студент - свои сообщения от "Стажер"
-                                    msg.chat.senderChat == "Стажер"
-                                }
+                                isMe = isMe
                             )
                         }
                     }
@@ -260,6 +269,24 @@ fun MessageBubble(
                 color = if (isMe) Color(0xFF5399BC) else Color.White.copy(alpha = 0.15f)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
+                    if (!isMe) {
+                        val senderName = when (message.senderChat) {
+                            "Работодатель" -> "Работодатель"
+                            "Администратор" -> "Администратор"
+                            "Стажер" -> "Стажер"
+                            else -> ""
+                        }
+                        if (senderName.isNotEmpty()) {
+                            Text(
+                                senderName,
+                                color = Color(0xFF5399BC),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                    }
+
                     Text(
                         message.textChat ?: "",
                         color = Color.White,
