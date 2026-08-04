@@ -26,6 +26,7 @@ import org.example.project.BgGradientStart
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.CurrentUser
+import org.example.project.Models.Intership
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,42 +43,184 @@ fun ChatDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var inputText by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
+    var isFirstLoad by remember { mutableStateOf(true) }
+
+    // Состояния для стажировки
+    var internship by remember { mutableStateOf<Intership?>(null) }
+    var isLoadingInternship by remember { mutableStateOf(false) }
+    var isStartingInternship by remember { mutableStateOf(false) }
+    var isEndingInternship by remember { mutableStateOf(false) }
+    var showStartDialog by remember { mutableStateOf(false) }
+    var internshipDays by remember { mutableStateOf(0) }
 
     val chat = chatDTO.chat
-    val name = chatDTO.nameCompany ?: chatDTO.nameVacancy ?: "Чат"
-    val isCompanyChat = chat.idDirector != null
+
+    val isAdminChat = chat.emailAdmin != null
+    val isCompanyChat = chat.idDirector != null && chat.emailAdmin == null
+
     val recipientId = if (isCompanyChat) chat.idDirector else null
-    val recipientEmail = if (!isCompanyChat) chat.emailAdmin else null
+    val recipientEmail = if (isAdminChat) chat.emailAdmin else null
+
+    val displayName = when {
+        isAdminChat -> {
+            if (isCompany) {
+                chat.emailAdmin ?: "Администратор"
+            } else {
+                "Администратор"
+            }
+        }
+        isCompanyChat -> {
+            if (isCompany) {
+                chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
+            } else {
+                chatDTO.nameCompany ?: chatDTO.nameVacancy ?: "Компания"
+            }
+        }
+        else -> "Чат"
+    }
+
+    // Загрузка стажировки
+    fun loadInternship() {
+        if (!isCompany) return
+
+        scope.launch {
+            isLoadingInternship = true
+            val userId = chat.idUser ?: 0
+            val companyId = CurrentUser.id ?: 0
+            val vacancyId = chat.idVacancy ?: 0
+
+            if (userId != 0 && vacancyId != 0) {
+                val result = api.getUserIntership(userId, companyId, vacancyId)
+                internship = result
+                // Загружаем дни если стажировка идет
+                if (result?.statusIntership == "Идет") {
+                    val days = api.getInternshipDays(result.idIntership)
+                    if (days != null) {
+                        internshipDays = days
+                    }
+                }
+            }
+            isLoadingInternship = false
+        }
+    }
+
+    // Начать стажировку
+    fun startInternship() {
+        scope.launch {
+            isStartingInternship = true
+            val userId = chat.idUser ?: 0
+            val companyId = CurrentUser.id ?: 0
+            val vacancyId = chat.idVacancy ?: 0
+
+            val newInternship = Intership(
+                idIntership = 0,
+                idUser = userId,
+                idCompany = companyId,
+                dateStartIntership = null,
+                dateEndIntership = null,
+                statusIntership = null,
+                responseId = null,
+                idVacancy = vacancyId
+            )
+
+            val result = api.startInternship(newInternship)
+            if (result != null) {
+                internship = result
+                showStartDialog = false
+                // Загружаем дни
+                val days = api.getInternshipDays(result.idIntership)
+                if (days != null) {
+                    internshipDays = days
+                }
+            }
+            isStartingInternship = false
+        }
+    }
+
+    // Завершить стажировку
+    fun endInternship() {
+        scope.launch {
+            isEndingInternship = true
+            internship?.idIntership?.let { id ->
+                val result = api.endInternship(id)
+                if (result != null) {
+                    internship = result
+                    internshipDays = 0
+                }
+            }
+            isEndingInternship = false
+        }
+    }
 
     fun loadMessages() {
         scope.launch {
             isLoading = true
 
-            val userId = if (isCompany) {
-                chat.idUser ?: 0
-            } else {
-                CurrentUser.id ?: 0
-            }
-
+            val userId = CurrentUser.id ?: 0
             val vacancyId = chat.idVacancy ?: 0
 
-            val result = if (isCompanyChat && recipientId != null) {
-                api.getChatMessagesCompany(userId, recipientId, vacancyId)
-            } else if (!isCompanyChat && recipientEmail != null) {
-                api.getChatMessagesAdmin(userId, recipientEmail)
-            } else {
-                null
+            val result = when {
+                isAdminChat && recipientEmail != null -> {
+                    if (isCompany) {
+                        val companyId = CurrentUser.id ?: 0
+                        api.getChatMessagesCompanyAdmin(companyId, recipientEmail)
+                    } else {
+                        api.getChatMessagesAdmin(userId, recipientEmail)
+                    }
+                }
+                isCompanyChat && recipientId != null -> {
+                    if (isCompany) {
+                        val studentId = chat.idUser ?: 0
+                        val companyId = CurrentUser.id ?: 0
+                        api.getChatMessagesCompany(studentId, companyId, vacancyId)
+                    } else {
+                        api.getChatMessagesCompany(userId, recipientId, vacancyId)
+                    }
+                }
+                else -> null
             }
 
             if (result != null) {
+                val unreadMessages = result.filter { msg ->
+                    val isFromOther = if (isCompany) {
+                        msg.chat.senderChat == "Стажер" || msg.chat.senderChat == "Админ"
+                    } else {
+                        msg.chat.senderChat == "Работодатель" || msg.chat.senderChat == "Админ"
+                    }
+                    isFromOther && msg.chat.statusChat != "Прочитано"
+                }
+
+                unreadMessages.forEach { msg ->
+                    msg.chat.idChat?.let { chatId ->
+                        api.markMessageAsRead(chatId)
+                    }
+                }
+
                 messages = result
+
+                if (isFirstLoad) {
+                    isFirstLoad = false
+                    loadInternship()
+                }
             }
             isLoading = false
         }
     }
 
+    fun startPolling() {
+        scope.launch {
+            while (true) {
+                delay(5000)
+                if (!isLoading) {
+                    loadMessages()
+                }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         loadMessages()
+        startPolling()
     }
 
     fun sendMessage() {
@@ -86,23 +229,18 @@ fun ChatDetailScreen(
         scope.launch {
             isSending = true
 
-            val userId = if (isCompany) {
-                chat.idUser ?: 0
-            } else {
-                CurrentUser.id ?: 0
-            }
-
+            val userId = CurrentUser.id ?: 0
             val sender = if (isCompany) "Работодатель" else "Стажер"
 
             val newMessage = Chat(
                 idChat = 0,
-                idUser = userId,
+                idUser = if (!isCompany) userId else null,
                 textChat = inputText,
                 statusChat = "Отправлено",
                 sendAtChat = null,
                 idVacancy = chat.idVacancy,
-                idDirector = if (isCompany) CurrentUser.id else chat.idDirector,
-                emailAdmin = if (!isCompanyChat) chat.emailAdmin else null,
+                idDirector = if (isCompany) userId else chat.idDirector,
+                emailAdmin = if (isAdminChat) chat.emailAdmin else null,
                 senderChat = sender
             )
 
@@ -129,11 +267,7 @@ fun ChatDetailScreen(
                         }
                     ) {
                         Text(
-                            if (isCompany) {
-                                chatDTO.fioUser ?: name
-                            } else {
-                                name
-                            },
+                            displayName,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -166,12 +300,121 @@ fun ChatDetailScreen(
                 .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
                 .padding(padding)
         ) {
-            if (isLoading) {
+            if (isLoading && isFirstLoad) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color.White)
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
+                    // Блок стажировки (только для компании)
+                    if (isCompany) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFF5399BC).copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                when {
+                                    isLoadingInternship -> {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = Color.White
+                                        )
+                                    }
+                                    internship == null -> {
+                                        Button(
+                                            onClick = { showStartDialog = true },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF4CAF50)
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.PlayArrow, null, tint = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Начать стажировку", color = Color.White)
+                                        }
+                                    }
+                                    internship?.statusIntership == "Закончена" -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                null,
+                                                tint = Color(0xFF4CAF50),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "Стажировка завершена",
+                                                color = Color(0xFF4CAF50),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    internship?.statusIntership == "Идет" -> {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Timer,
+                                                    null,
+                                                    tint = Color(0xFFFFB74D),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    "Стажировка идет",
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                "Дней: $internshipDays",
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                fontSize = 12.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Button(
+                                                onClick = { endInternship() },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFFFF9800)
+                                                ),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                if (isEndingInternship) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(20.dp),
+                                                        color = Color.White
+                                                    )
+                                                } else {
+                                                    Icon(Icons.Default.Stop, null, tint = Color.White)
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Завершить стажировку", color = Color.White)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
@@ -182,7 +425,7 @@ fun ChatDetailScreen(
                     ) {
                         items(messages.reversed()) { msg ->
                             val isMe = if (isCompany) {
-                                msg.chat.senderChat == "Работодатель"
+                                msg.chat.senderChat == "Работодатель" || msg.chat.senderChat == "Администратор"
                             } else {
                                 msg.chat.senderChat == "Стажер"
                             }
@@ -239,6 +482,59 @@ fun ChatDetailScreen(
                 }
             }
         }
+    }
+
+    // Диалог подтверждения начала стажировки
+    if (showStartDialog) {
+        AlertDialog(
+            onDismissRequest = { showStartDialog = false },
+            title = {
+                Text(
+                    "Начать стажировку",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Вы уверены, что хотите начать стажировку?",
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Стажировка начнется с сегодняшнего дня.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            confirmButton = {
+                Button(
+                    onClick = { startInternship() },
+                    enabled = !isStartingInternship,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    if (isStartingInternship) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White
+                        )
+                    } else {
+                        Text("Начать", color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showStartDialog = false },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text("Отмена", color = Color.White)
+                }
+            }
+        )
     }
 }
 

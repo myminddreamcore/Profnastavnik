@@ -5,9 +5,13 @@ import RegistrationScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
+import org.example.project.CompanyScreen.CompanyArchiveScreen
+import org.example.project.CompanyScreen.CompanyFeedbacksScreen
 import org.example.project.CompanyScreen.CompanyResponsesScreen
+import org.example.project.CompanyScreen.CompanySettingsScreen
 import org.example.project.CompanyScreen.CreateVacancyScreen
 import org.example.project.CompanyScreen.DashboardCompany
+import org.example.project.CompanyScreen.EditCompanyProfileScreen
 import org.example.project.Models.ChatDTO
 import org.example.project.UserScreen.*
 
@@ -53,11 +57,12 @@ fun App() {
             }
             "Профиль" -> {
                 navigationStack.clear()
-                navigationStack.add(10)
+                navigationStack.add(if (userRole == "company") 26 else 10)
             }
             "Настройки" -> {
                 navigationStack.clear()
-                navigationStack.add(8)
+                // ← Проверяем роль: если компания - на 25, иначе на 8
+                navigationStack.add(if (userRole == "company") 25 else 8)
             }
         }
     }
@@ -79,7 +84,10 @@ fun App() {
                     navigateTo(21)
                 }
             )
-            2 -> RegistrationScreen()
+            2 -> RegistrationScreen(onSuccess = {
+
+                navigateTo(1)
+            })
 
             3 -> DashboardStudent(
                 api = api,
@@ -316,6 +324,55 @@ fun App() {
                 onResponseUpdated = {
                 }
             )
+
+            25 -> CompanySettingsScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToChats = { navigateTo(11) },
+                onNavigateToTariffs = { navigateTo(20) },
+                onNavigateToArchive = {
+                    responseType = "archive"
+                    navigateTo(4)
+                },
+                onNavigateToFeedbacks = { navigateTo(27) },
+                onNavigateToArchiveShip = { navigateTo(28) },
+                onLogout = {
+                    navigationStack.clear()
+                    navigationStack.add(0)
+                }
+            )
+
+            26 -> EditCompanyProfileScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onSave = { goBack() }
+            )
+            27 -> CompanyFeedbacksScreen(
+                api = api,
+                onBack = { goBack() },
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
+            )
+            28 -> CompanyArchiveScreen(
+                api = api,
+                onBack = { goBack() },
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                }
+            )
+
+
         }
     }
 }

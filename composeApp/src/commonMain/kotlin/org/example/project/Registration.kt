@@ -25,7 +25,7 @@ val InputFieldColor = Color(0xFF5399BC)
 val ButtonColor = Color(0xFF2E79A3)
 
 @Composable
-fun RegistrationScreen() {
+fun RegistrationScreen(onSuccess: () -> Unit) {
     val scope = rememberCoroutineScope()
     val apiClient = remember { ApiClient() }
 
@@ -35,7 +35,7 @@ fun RegistrationScreen() {
     var selectedRole by remember { mutableStateOf("Работодатель") }
     val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }, // ОБЯЗАТЕЛЬНО
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Color.Transparent
     ) { paddingValues ->
         Box(
@@ -150,6 +150,7 @@ fun RegistrationScreen() {
                                     if (success == null) {
                                         scope.launch {
                                             snackbarHostState.showSnackbar("Успешная регистрация!")
+                                            onSuccess()
                                         }
                                     } else {
                                         scope.launch {

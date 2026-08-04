@@ -36,12 +36,12 @@ fun ChatsScreen(
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        val userId = if (isCompany) {
-            CurrentUser.id ?: 0
+        val userId = CurrentUser.id ?: 0
+        val result = if (isCompany) {
+            api.getCompanyChats(userId)
         } else {
-            CurrentUser.id ?: 0
+            api.getUserChats(userId)
         }
-        val result = api.getUserChats(userId)
         if (result != null) {
             chats = result
         }
@@ -121,9 +121,17 @@ fun ChatCard(
 ) {
     val chat = chatDTO.chat
 
+    // Определяем имя в зависимости от роли
     val name: String = if (isCompany) {
-        chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
+        // Компания видит ФИО студента или email админа
+        if (chat.idUser == null) {
+            // Если idUser null - это чат с админом
+            chat.emailAdmin ?: "Администратор"
+        } else {
+            chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
+        }
     } else {
+        // Студент видит название компании или вакансии или email админа
         chatDTO.nameCompany ?: chatDTO.nameVacancy ?: chat.emailAdmin ?: "Чат"
     }
 
@@ -161,12 +169,23 @@ fun ChatCard(
                     .background(Color(0xFF5399BC).copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.Person,
-                    null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
+                // Показываем разные иконки для админа и обычного пользователя
+                if (chat.idUser == null && !isCompany) {
+                    // Чат с админом
+                    Icon(
+                        Icons.Default.AdminPanelSettings,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

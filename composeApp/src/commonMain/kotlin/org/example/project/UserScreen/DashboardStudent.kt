@@ -59,7 +59,7 @@ fun DashboardStudent(
     }
 
     val isPremium = userPrice?.idPrices != 1
-    val showRecommendations = isPremium && recommendations.isNotEmpty()
+    val showRecommendations = isPremium
 
     Scaffold(
         bottomBar = {

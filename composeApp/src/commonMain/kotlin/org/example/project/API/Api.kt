@@ -35,10 +35,12 @@ import org.example.project.Models.CreateVacancyDTO
 import org.example.project.Models.Currency
 import org.example.project.Models.Director
 import org.example.project.Models.DirectorDTO
+import org.example.project.Models.FeedbacksCompany
 import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.FeedbacksUserDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
+import org.example.project.Models.Intership
 import org.example.project.Models.MoneyType
 import org.example.project.Models.PricesForUser
 import org.example.project.Models.ResponciesDTO
@@ -129,6 +131,191 @@ class ApiClient {
             println("Error: ${e.message}")
             e.printStackTrace()
             null
+        }
+    }
+    suspend fun getChatMessagesCompanyAdmin(companyId: Int, emailAdmin: String): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}User/GetChatMessagesCompanyAdmin/${companyId}/${emailAdmin}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun markMessageAsRead(chatId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}Chat/MessageRead/${chatId}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun getUserIntership(userId: Int, companyId: Int, vacancyId: Int): Intership? {
+        return try {
+            val url = "${BASE_URL}Intership/UserIntership/${userId}/${companyId}/${vacancyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<Intership>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun startInternship(internship: Intership): Intership? {
+        return try {
+            val url = "${BASE_URL}Intership/NewInterShip"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(internship)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<Intership>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun endInternship(internshipId: Int): Intership? {
+        return try {
+            val url = "${BASE_URL}Intership/EndInterShip/${internshipId}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<Intership>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getInternshipDays(internshipId: Int): Int? {
+        return try {
+            val url = "${BASE_URL}Intership/GetInternshipDays/${internshipId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                jsonString.toIntOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompanyInterships(companyId: Int): List<Intership>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyIntership/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<Intership>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun addCompanyFeedback(feedback: FeedbacksCompany): Boolean {
+        return try {
+            val url = "${BASE_URL}Company/CompanyFeddback"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(feedback)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                true
+            } else {
+                val error = response.bodyAsText()
+                println("Error: $error")
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun deleteCompanyFeedback(feedbackId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}Company/DeleteGetCompanyFeedbackToUser/${feedbackId}"
+            println(url)
+            val response = client.delete(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun getCompanyFeedbackToUser(companyId: Int): List<FeedbacksCompany>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyFeedbackToUser/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<FeedbacksCompany>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun saveCompanyProfile(director: Director): Boolean {
+        return try {
+            val url = "${BASE_URL}Company/SaveCompanyProfile/${director.idDirector}"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(director)
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 
@@ -746,6 +933,24 @@ class ApiClient {
             null
         }
     }
+    suspend fun deleteCompany(companyId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}Company/DeleteCompany/${companyId}"
+            println(url)
+            val response = client.delete(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                true
+            } else {
+                val error = response.bodyAsText()
+                println("Error: $error")
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
     suspend fun getCountUsermessages(user: Student): Int? {
         return try {
             val url = "${BASE_URL}User/GetUserMessages/${user.idStudent}"
@@ -868,6 +1073,35 @@ class ApiClient {
     suspend fun getUserChats(userId: Int): List<ChatDTO>? {
         return try {
             val url = "${BASE_URL}User/GetUserChats/$userId"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun archiveVacancy(vacancyId: Int): Boolean {
+        return try {
+            val url = "${BASE_URL}Vacancy/ArchiveVacancy/${vacancyId}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun getCompanyChats(userId: Int): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyChats/$userId"
             println(url)
             val response = client.get(url)
             println(response)

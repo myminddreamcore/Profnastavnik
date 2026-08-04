@@ -4,8 +4,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,9 +19,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
 import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
+import org.example.project.Models.CardVacancy
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.Director
 import org.example.project.Models.Listresponcies
@@ -44,18 +44,66 @@ fun DashboardCompany(
     var responses by remember { mutableStateOf<List<ResponciesDTO>>(emptyList()) }
     var messageCount by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
+    var showArchiveDialog by remember { mutableStateOf(false) }
+    var selectedVacancyId by remember { mutableStateOf<Int?>(null) }
+    // Добавляем состояние для хранения полных данных о вакансиях
+    var vacancyDetails by remember { mutableStateOf<Map<Int, CardVacancy>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+
+    fun loadData() {
+        scope.launch {
+            isLoading = true
+            val director = Director(idDirector = CurrentUser.id ?: 0)
+
+            val fetchedMessages = api.getCountCompanymessages(director)
+            val fetchedVacancies = api.getCompanyVacancies(director)
+            val fetchedResponses = api.getCompanyResponcies(director)
+
+            if (fetchedMessages != null) messageCount = fetchedMessages
+            if (fetchedVacancies != null) {
+                vacancies = fetchedVacancies
+
+                // Загружаем полные данные для каждой вакансии
+                val detailsMap = mutableMapOf<Int, CardVacancy>()
+                fetchedVacancies.forEach { vacancy ->
+                    vacancy.idVacancy?.let { id ->
+                        val detail = api.getVacancy(id)
+                        if (detail != null) {
+                            detailsMap[id] = detail
+                        }
+                    }
+                }
+                vacancyDetails = detailsMap
+
+                // Сортируем вакансии на основе статуса из полных данных
+                vacancies = fetchedVacancies.sortedBy { vacancy ->
+                    val detail = vacancy.idVacancy?.let { vacancyDetails[it] }
+                    val status = detail?.vacancy?.statusVacancy
+                    when (status) {
+                        "Активна" -> 0
+                        "На модерации" -> 1
+                        else -> 2
+                    }
+                }
+            }
+            if (fetchedResponses != null) responses = fetchedResponses
+            isLoading = false
+        }
+    }
 
     LaunchedEffect(Unit) {
-        val director = Director(idDirector = CurrentUser.id ?: 0)
+        loadData()
+    }
 
-        val fetchedMessages = api.getCountCompanymessages(director)
-        val fetchedVacancies = api.getCompanyVacancies(director)
-        val fetchedResponses = api.getCompanyResponcies(director)
-
-        if (fetchedMessages != null) messageCount = fetchedMessages
-        if (fetchedVacancies != null) vacancies = fetchedVacancies
-        if (fetchedResponses != null) responses = fetchedResponses
-        isLoading = false
+    fun archiveVacancy(vacancyId: Int) {
+        scope.launch {
+            val success = api.archiveVacancy(vacancyId)
+            if (success) {
+                loadData()
+            }
+            showArchiveDialog = false
+            selectedVacancyId = null
+        }
     }
 
     Scaffold(
@@ -73,7 +121,9 @@ fun DashboardCompany(
                 .padding(paddingValues)
         ) {
             CompanyDashboardContent(
+                api = api,
                 vacancies = vacancies,
+                vacancyDetails = vacancyDetails,
                 responses = responses,
                 messageCount = messageCount,
                 isLoading = isLoading,
@@ -81,15 +131,73 @@ fun DashboardCompany(
                 onCreateVacancy = onCreateVacancy,
                 onViewResponses = onViewResponses,
                 onNavigateToVacancyDetail = onNavigateToVacancyDetail,
-                onNavigateToUserProfile = onNavigateToUserProfile
+                onNavigateToUserProfile = onNavigateToUserProfile,
+                onArchiveVacancy = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    showArchiveDialog = true
+                }
             )
         }
+    }
+
+    // Диалог подтверждения архивации
+    if (showArchiveDialog) {
+        AlertDialog(
+            onDismissRequest = { showArchiveDialog = false },
+            title = {
+                Text(
+                    "Архивировать вакансию",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Вы уверены, что хотите архивировать эту вакансию?",
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Архивные вакансии не будут отображаться в списке активных.",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedVacancyId?.let { archiveVacancy(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFB71C1C)
+                    )
+                ) {
+                    Text("Архивировать", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showArchiveDialog = false
+                        selectedVacancyId = null
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text("Отмена", color = Color.White)
+                }
+            }
+        )
     }
 }
 
 @Composable
 fun CompanyDashboardContent(
+    api: ApiClient,
     vacancies: List<Listresponcies>,
+    vacancyDetails: Map<Int, CardVacancy>,
     responses: List<ResponciesDTO>,
     messageCount: Int,
     isLoading: Boolean,
@@ -97,7 +205,8 @@ fun CompanyDashboardContent(
     onCreateVacancy: () -> Unit,
     onViewResponses: () -> Unit,
     onNavigateToVacancyDetail: (Int) -> Unit,
-    onNavigateToUserProfile: (Int) -> Unit
+    onNavigateToUserProfile: (Int) -> Unit,
+    onArchiveVacancy: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -178,8 +287,11 @@ fun CompanyDashboardContent(
                 } else {
                     vacancies.forEach { vacancy ->
                         CompanyVacancyCard(
-                            item = vacancy,
-                            onClick = { onNavigateToVacancyDetail(vacancy.idVacancy ?: 0) }
+                            api = api,
+                            vacancyId = vacancy.idVacancy ?: 0,
+                            vacancyDetail = vacancy.idVacancy?.let { vacancyDetails[it] },
+                            onClick = { onNavigateToVacancyDetail(vacancy.idVacancy ?: 0) },
+                            onArchive = { onArchiveVacancy(vacancy.idVacancy ?: 0) }
                         )
                     }
                 }
@@ -243,12 +355,42 @@ fun CompanyActionItem(
         }
     }
 }
+
 @Composable
-fun CompanyVacancyCard(item: Listresponcies, onClick: () -> Unit) {
+fun CompanyVacancyCard(
+    api: ApiClient,
+    vacancyId: Int,
+    vacancyDetail: CardVacancy?,
+    onClick: () -> Unit,
+    onArchive: () -> Unit
+) {
+    val vacancy = vacancyDetail?.vacancy
+    val isOnModeration = vacancy?.statusVacancy == "На модерации"
+    val isArchived = vacancy?.statusVacancy == "Архив"
+
+    // Не показываем архивные вакансии
+    if (isArchived) return
+
+    if (vacancyDetail == null) {
+        Box(
+            modifier = Modifier
+                .width(170.dp)
+                .height(if (isOnModeration) 210.dp else 190.dp)
+                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = Color.White
+            )
+        }
+        return
+    }
+
     Card(
         modifier = Modifier
             .width(170.dp)
-            .height(190.dp)
+            .height(if (isOnModeration) 210.dp else 190.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
@@ -256,8 +398,24 @@ fun CompanyVacancyCard(item: Listresponcies, onClick: () -> Unit) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            if (isOnModeration) {
+                Surface(
+                    color = Color(0xFFFF9800).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        "На модерации",
+                        color = Color(0xFFFF9800),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
             Text(
-                item.nameVacancy ?: "Вакансия",
+                vacancy?.nameVacancy ?: "Вакансия",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
@@ -265,16 +423,44 @@ fun CompanyVacancyCard(item: Listresponcies, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "${item.zenStart} - ${item.zenEnd} ${item.currency}",
+                "${vacancy?.zenStartVacancy} - ${vacancy?.zenEndVacancy} ${vacancyDetail.currency}",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 13.sp
             )
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "Длительность: ${item.time}",
+                "Длительность: ${vacancy?.timeVacancy}",
                 color = Color(0xFF5399BC),
                 fontSize = 12.sp
             )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (!isOnModeration && !isArchived) {
+                Button(
+                    onClick = onArchive,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFB71C1C).copy(alpha = 0.8f)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Archive,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "В архив",
+                        color = Color.White,
+                        fontSize = 11.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -338,6 +524,7 @@ fun ResponseCard(
         }
     }
 }
+
 @Composable
 fun GradientButton(
     text: String,
