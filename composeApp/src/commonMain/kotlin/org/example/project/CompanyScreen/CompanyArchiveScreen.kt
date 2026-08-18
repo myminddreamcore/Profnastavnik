@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,11 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -27,8 +24,6 @@ import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.FeedbacksCompany
 import org.example.project.Models.Intership
-import org.example.project.Models.Student
-import org.example.project.UserScreen.CustomBottomNavigation
 
 @Composable
 fun CompanyArchiveScreen(
@@ -43,6 +38,7 @@ fun CompanyArchiveScreen(
     var showFeedbackDialog by remember { mutableStateOf(false) }
     var selectedInternship by remember { mutableStateOf<Intership?>(null) }
     var feedbackText by remember { mutableStateOf("") }
+    var studentRating by remember { mutableStateOf(0) } // Рейтинг от 0 до 5
     var isSending by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -57,7 +53,6 @@ fun CompanyArchiveScreen(
             if (result != null) {
                 internships = result
 
-                // Загружаем имена пользователей
                 val namesMap = mutableMapOf<Int, String>()
                 result.forEach { internship ->
                     internship.idUser?.let { userId ->
@@ -88,6 +83,11 @@ fun CompanyArchiveScreen(
             return
         }
 
+        if (studentRating == 0) {
+            errorMessage = "Поставьте оценку стажеру"
+            return
+        }
+
         scope.launch {
             isSending = true
             errorMessage = null
@@ -98,6 +98,7 @@ fun CompanyArchiveScreen(
                 idCompany = CurrentUser.id ?: 0,
                 descriptionCompany = feedbackText,
                 idVacancy = selectedInternship?.idVacancy,
+                ratingStudent = studentRating,
                 statusFeedbackCompany = "Новый"
             )
 
@@ -108,6 +109,7 @@ fun CompanyArchiveScreen(
                 snackbarHostState.showSnackbar("Отзыв успешно отправлен!")
                 showFeedbackDialog = false
                 feedbackText = ""
+                studentRating = 0
                 selectedInternship = null
                 loadData()
             } else {
@@ -186,6 +188,7 @@ fun CompanyArchiveScreen(
             onDismissRequest = {
                 showFeedbackDialog = false
                 feedbackText = ""
+                studentRating = 0
                 errorMessage = null
             },
             title = {
@@ -197,15 +200,66 @@ fun CompanyArchiveScreen(
             },
             text = {
                 Column(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
                 ) {
                     Text(
                         "Оставьте отзыв о стажере",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 12.sp
                     )
+
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // РЕЙТИНГ СТУДЕНТА (1-5 ЗВЁЗД)
+                    Text(
+                        "Оценка стажеру:",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Звёзды для выбора рейтинга
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        for (i in 1..5) {
+                            IconButton(
+                                onClick = { studentRating = i },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    if (i <= studentRating) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "$i звезд",
+                                    tint = if (i <= studentRating) Color(0xFFFFB74D) else Color.White.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Текст с текущим рейтингом
+                    Text(
+                        when (studentRating) {
+                            1 -> "⭐ Очень плохо"
+                            2 -> "⭐⭐ Плохо"
+                            3 -> "⭐⭐⭐ Нормально"
+                            4 -> "⭐⭐⭐⭐ Хорошо"
+                            5 -> "⭐⭐⭐⭐⭐ Отлично!"
+                            else -> "Выберите оценку"
+                        },
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Текст отзыва
                     OutlinedTextField(
                         value = feedbackText,
                         onValueChange = {
@@ -266,6 +320,7 @@ fun CompanyArchiveScreen(
                     onClick = {
                         showFeedbackDialog = false
                         feedbackText = ""
+                        studentRating = 0
                         errorMessage = null
                     },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
@@ -293,7 +348,6 @@ fun ArchiveCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Имя пользователя - кликабельно
             Text(
                 userName,
                 color = Color(0xFF5399BC),
@@ -304,11 +358,17 @@ fun ArchiveCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-
+            // Показываем название вакансии, если есть
+            internship.idVacancy?.let { vacancyId ->
+                Text(
+                    "Вакансия #$vacancyId", // Можно заменить на название, если есть
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Даты
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -327,7 +387,6 @@ fun ArchiveCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Статус
             if (!internship.statusIntership.isNullOrBlank()) {
                 Surface(
                     color = when (internship.statusIntership) {
@@ -348,7 +407,6 @@ fun ArchiveCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Кнопки
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

@@ -27,8 +27,8 @@ import org.example.project.API.ApiClient
 import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
-import org.example.project.Models.Response
-import org.example.project.Models.Student
+import org.example.project.Models.PriorityResponseDTO
+import org.example.project.Models.CompanyPrice
 import org.example.project.Models.Vacancy
 
 @Composable
@@ -39,56 +39,43 @@ fun CompanyResponsesScreen(
     onNavigateToVacancyDetail: (Int) -> Unit,
     onResponseUpdated: () -> Unit
 ) {
-    var responses by remember { mutableStateOf<List<Response>>(emptyList()) }
-    var students by remember { mutableStateOf<Map<Int, Student>>(emptyMap()) }
-    var vacancies by remember { mutableStateOf<Map<Int, Vacancy>>(emptyMap()) }
+    var priorityResponses by remember { mutableStateOf<List<PriorityResponseDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showConfirmDialog by remember { mutableStateOf(false) }
-    var selectedResponse by remember { mutableStateOf<Response?>(null) }
+    var selectedResponse by remember { mutableStateOf<PriorityResponseDTO?>(null) }
     var actionType by remember { mutableStateOf("") }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
     var isSuccess by remember { mutableStateOf(false) }
+    var companyPrice by remember { mutableStateOf<CompanyPrice?>(null) }
+    var isLoadingTariff by remember { mutableStateOf(true) }
+    var showPriorityInfo by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    fun loadResponses() {
+    fun loadData() {
         scope.launch {
             isLoading = true
+            isLoadingTariff = true
+
             val companyId = CurrentUser.id ?: 0
-            val result = api.getResponsesByCompany(companyId)
+
+            // Загружаем тариф
+            val tariff = api.getCompanyTariff(companyId)
+            companyPrice = tariff
+
+            // Загружаем приоритетные отклики
+            val result = api.getPriorityResponses(companyId)
             if (result != null) {
-                responses = result
-
-                val studentMap = mutableMapOf<Int, Student>()
-                val vacancyMap = mutableMapOf<Int, Vacancy>()
-
-                result.forEach { response ->
-                    response.idUser?.let { userId ->
-                        if (!studentMap.containsKey(userId)) {
-                            val student = api.getUserById(userId)
-                            if (student != null) {
-                                studentMap[userId] = student
-                            }
-                        }
-                    }
-                    response.idVacancy?.let { vacancyId ->
-                        if (!vacancyMap.containsKey(vacancyId)) {
-                            val vacancy = api.getVacancy(vacancyId)
-                            if (vacancy != null) {
-                                vacancyMap[vacancyId] = vacancy.vacancy ?: Vacancy()
-                            }
-                        }
-                    }
-                }
-                students = studentMap
-                vacancies = vacancyMap
+                priorityResponses = result
             }
+
             isLoading = false
+            isLoadingTariff = false
         }
     }
 
     LaunchedEffect(Unit) {
-        loadResponses()
+        loadData()
     }
 
     LaunchedEffect(snackbarMessage) {
@@ -109,13 +96,16 @@ fun CompanyResponsesScreen(
                 snackbarMessage = "Стажер $actionName успешно!"
                 isSuccess = true
                 onResponseUpdated()
-                loadResponses()
+                loadData()
             } else {
                 snackbarMessage = "Ошибка при обновлении статуса"
                 isSuccess = false
             }
         }
     }
+
+    // Проверяем, доступны ли приоритетные отклики (тариф 2 или 3)
+    val isPriorityAvailable = companyPrice?.idPrice in listOf(2, 3)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -138,8 +128,50 @@ fun CompanyResponsesScreen(
                     IconButton(onClick = { onBack() }) {
                         Icon(Icons.Default.ArrowBack, "Назад", tint = Color.White, modifier = Modifier.size(28.dp))
                     }
-                    Text("Новые отклики", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Box(modifier = Modifier.size(40.dp))
+                    Text(
+                        if (isPriorityAvailable) "Приоритетные отклики" else "Новые отклики",
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    // Кнопка информации о приоритетах
+                    if (isPriorityAvailable) {
+                        IconButton(onClick = { showPriorityInfo = !showPriorityInfo }) {
+                            Icon(
+                                Icons.Default.Info,
+                                null,
+                                tint = Color(0xFFFFB74D),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Информация о приоритетных откликах
+                if (showPriorityInfo && isPriorityAvailable) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB74D).copy(alpha = 0.15f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                "Рейтинг приоритетности рассчитывается по:",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                "• Совпадение навыков (25%)\n• Совпадение профессий (20%)\n• Количество завершенных стажировок (20%)\n• Рейтинг стажера (25%)\n• Наличие портфолио (+10%)",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -148,12 +180,15 @@ fun CompanyResponsesScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Color.White)
                     }
-                } else if (responses.isEmpty()) {
+                } else if (priorityResponses.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Assignment, null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Новых откликов нет", color = Color.White.copy(alpha = 0.5f))
+                            Text(
+                                if (isPriorityAvailable) "Нет приоритетных откликов" else "Новых откликов нет",
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
                         }
                     }
                 } else {
@@ -162,31 +197,25 @@ fun CompanyResponsesScreen(
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(responses) { response ->
-                            val student = response.idUser?.let { students[it] }
-                            val vacancy = response.idVacancy?.let { vacancies[it] }
-
-                            ResponseItemCard(
-                                response = response,
-                                studentFIO = student?.let {
-                                    "${it.surnameStudent} ${it.nameStudent} ${it.patronymicStudent}".trim()
-                                } ?: "Студент",
-                                vacancyName = vacancy?.nameVacancy ?: "Вакансия",
+                        items(priorityResponses) { priorityResponse ->
+                            PriorityResponseCard(
+                                priorityResponse = priorityResponse,
+                                isPriorityAvailable = isPriorityAvailable,
                                 onAccept = {
-                                    selectedResponse = response
+                                    selectedResponse = priorityResponse
                                     actionType = "accept"
                                     showConfirmDialog = true
                                 },
                                 onReject = {
-                                    selectedResponse = response
+                                    selectedResponse = priorityResponse
                                     actionType = "reject"
                                     showConfirmDialog = true
                                 },
                                 onViewProfile = {
-                                    response.idUser?.let { onNavigateToUserProfile(it) }
+                                    priorityResponse.response.idUser?.let { onNavigateToUserProfile(it) }
                                 },
                                 onViewVacancy = {
-                                    response.idVacancy?.let { onNavigateToVacancyDetail(it) }
+                                    priorityResponse.response.idVacancy?.let { onNavigateToVacancyDetail(it) }
                                 }
                             )
                         }
@@ -221,7 +250,7 @@ fun CompanyResponsesScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        selectedResponse?.idResponse?.let {
+                        selectedResponse?.response?.idResponse?.let {
                             updateResponse(
                                 it,
                                 if (actionType == "accept") "Приглашен" else "Отклонено",
@@ -246,38 +275,108 @@ fun CompanyResponsesScreen(
 }
 
 @Composable
-fun ResponseItemCard(
-    response: Response,
-    studentFIO: String,
-    vacancyName: String,
+fun PriorityResponseCard(
+    priorityResponse: PriorityResponseDTO,
+    isPriorityAvailable: Boolean,
     onAccept: () -> Unit,
     onReject: () -> Unit,
     onViewProfile: () -> Unit,
     onViewVacancy: () -> Unit
 ) {
+    val response = priorityResponse.response
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                studentFIO,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            // Рейтинг и ФИО
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    priorityResponse.studentFIO ?: "Студент",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                "Вакансия: $vacancyName",
+                "Вакансия: ${priorityResponse.vacancyName ?: "Не указана"}",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
-
+            if (isPriorityAvailable) {
+                Surface(
+                    color = Color(0xFFFFB74D).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Whatshot,
+                            null,
+                            tint = Color(0xFFFFB74D),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "${priorityResponse.totalScore}%",
+                            color = Color(0xFFFFB74D),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Статистика совпадений (только для приоритетных)
+            if (isPriorityAvailable) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatChip(
+                        label = "Навыки",
+                        value = "${priorityResponse.skillMatchCount} (${priorityResponse.skillMatchPercent}%)",
+                        color = Color(0xFF4A90E2)
+                    )
+                    StatChip(
+                        label = "Профессии",
+                        value = "${priorityResponse.professionMatchCount} (${priorityResponse.professionMatchPercent}%)",
+                        color = Color(0xFF7B61FF)
+                    )
+                    StatChip(
+                        label = "Стажировки",
+                        value = "${priorityResponse.completedInternships}",
+                        color = Color(0xFF00E676)
+                    )
+                }
+
+                if (priorityResponse.hasPortfolio) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Verified, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Есть портфолио", color = Color(0xFF4CAF50), fontSize = 11.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Сопроводительное письмо
             Text(
                 "Сопроводительное письмо:",
                 color = Color.White.copy(alpha = 0.6f),
@@ -349,6 +448,31 @@ fun ResponseItemCard(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun StatChip(label: String, value: String, color: Color) {
+    Surface(
+        color = color.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                label,
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 9.sp
+            )
+            Text(
+                value,
+                color = color,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
         }
     }
 }

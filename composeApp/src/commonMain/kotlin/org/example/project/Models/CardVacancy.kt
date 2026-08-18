@@ -10,4 +10,5 @@ data class CardVacancy (
     var skills: List<String>? = null,
     var sferes: List<String>? = null,
     var currency: String? = null,
+    var adress: String? = null,
 )

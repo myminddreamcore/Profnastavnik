@@ -1,18 +1,16 @@
 package org.example.project
 
 import MainScreen
-import RegistrationScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
-import org.example.project.CompanyScreen.CompanyArchiveScreen
-import org.example.project.CompanyScreen.CompanyFeedbacksScreen
-import org.example.project.CompanyScreen.CompanyResponsesScreen
-import org.example.project.CompanyScreen.CompanySettingsScreen
-import org.example.project.CompanyScreen.CreateVacancyScreen
-import org.example.project.CompanyScreen.DashboardCompany
-import org.example.project.CompanyScreen.EditCompanyProfileScreen
+import org.example.project.Admin.AdminSearchScreen
+import org.example.project.Admin.DashboardAdmin
+import org.example.project.Admin.ModerationScreen
+import org.example.project.CompanyScreen.*
+import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
+import org.example.project.Models.CurrentUser
 import org.example.project.UserScreen.*
 
 @Composable
@@ -30,7 +28,7 @@ fun App() {
     var userRole by remember { mutableStateOf("student") }
     var previousScreen by remember { mutableStateOf(0) }
     var selectedUserId by remember { mutableStateOf(0) }
-
+    var chatWithStudent by remember { mutableStateOf<ChatDTO?>(null) }
     val navigationStack = remember { mutableStateListOf(0) }
 
     fun navigateTo(state: Int) {
@@ -49,20 +47,47 @@ fun App() {
         when (target) {
             "Дашборд" -> {
                 navigationStack.clear()
-                navigationStack.add(if (userRole == "company") 21 else 3)
+                navigationStack.add(
+                    when (userRole) {
+                        "company" -> 21
+                        "admin" -> 32
+                        else -> 3
+                    }
+                )
             }
             "Поиск" -> {
                 navigationStack.clear()
-                navigationStack.add(7)
+                navigationStack.add(
+                    when (userRole) {
+                        "company" -> 30
+                        "admin" -> 33
+                        else -> 7
+                    }
+                )
             }
             "Профиль" -> {
                 navigationStack.clear()
-                navigationStack.add(if (userRole == "company") 26 else 10)
+                navigationStack.add(
+                    when (userRole) {
+                        "company" -> 26
+                        "admin" -> 34
+                        else -> 10
+                    }
+                )
+            }
+            "Модерация" -> {
+                navigationStack.clear()
+                navigationStack.add(34)
             }
             "Настройки" -> {
                 navigationStack.clear()
-                // ← Проверяем роль: если компания - на 25, иначе на 8
-                navigationStack.add(if (userRole == "company") 25 else 8)
+                navigationStack.add(
+                    when (userRole) {
+                        "company" -> 25
+                        "admin" -> 35
+                        else -> 8
+                    }
+                )
             }
         }
     }
@@ -82,13 +107,22 @@ fun App() {
                 onCompanySuccess = {
                     userRole = "company"
                     navigateTo(21)
+                },
+                onAdminSuccess = {
+                    userRole = "admin"
+                    navigateTo(32)
+                },
+                onNavigateToRegistration = {
+                    navigateTo(0)
                 }
             )
-            2 -> RegistrationScreen(onSuccess = {
 
-                navigateTo(1)
-            })
+            2 -> RegistrationScreen(
+                onSuccess = { navigateTo(1) },
+                onNavigateBack = { navigateTo(0) }
+            )
 
+            // ========== СТУДЕНТ ==========
             3 -> DashboardStudent(
                 api = api,
                 onNavigate = globalNavigate,
@@ -134,7 +168,7 @@ fun App() {
                 },
                 onNavigateToTariffs = { navigateTo(20) },
                 vacancyId = selectedVacancyId,
-                isCompany = userRole == "company"
+                isCompany = userRole == "company" || userRole == "admin"
             )
 
             7 -> SearchScreen(
@@ -163,6 +197,7 @@ fun App() {
                 onNavigateToFeedbacks = { navigateTo(13) },
                 onNavigateToTariffs = { navigateTo(20) },
                 onLogout = {
+                    userRole = "student"
                     navigationStack.clear()
                     navigationStack.add(0)
                 }
@@ -174,6 +209,7 @@ fun App() {
                 onSave = { goBack() }
             )
 
+            // ========== ОБЩИЕ ЭКРАНЫ ==========
             11 -> ChatsScreen(
                 api = api,
                 onBack = { goBack() },
@@ -181,7 +217,7 @@ fun App() {
                     selectedChat = chat
                     navigateTo(12)
                 },
-                isCompany = userRole == "company"
+                isCompany = userRole == "company" || userRole == "admin"
             )
 
             12 -> {
@@ -200,7 +236,11 @@ fun App() {
                             selectedCompanyId = companyId
                             navigateTo(15)
                         },
-                        isCompany = userRole == "company"
+                        onNavigateToUser = { userId ->
+                            selectedUserId = userId
+                            navigateTo(22)
+                        },
+                        isCompany = userRole == "company" || userRole == "admin"
                     )
                 }
             }
@@ -208,9 +248,13 @@ fun App() {
             13 -> FeedbacksScreen(
                 api = api,
                 onBack = { goBack() },
-                onNavigateToFeedbackDetail = { feedbackId ->
-                    selectedFeedbackId = feedbackId
-                    navigateTo(14)
+                onNavigateToCompanyProfile = { it ->
+                    selectedCompanyId = it
+                    navigateTo(15)
+                },
+                onNavigateToVacancyDetail = { it ->
+                    selectedVacancyId = it
+                    navigateTo(5)
                 }
             )
 
@@ -279,6 +323,7 @@ fun App() {
                 onSuccess = { goBack() }
             )
 
+            // ========== КОМПАНИЯ ==========
             21 -> DashboardCompany(
                 api = api,
                 onNavigate = globalNavigate,
@@ -301,13 +346,35 @@ fun App() {
                 onBack = { goBack() },
                 onViewResume = {
                     println("Посмотреть резюме пользователя $selectedUserId")
+                },
+                onNavigateToChat = { userId ->
+                    selectedUserId = userId
+                    val chat = Chat(
+                        idChat = 0,
+                        idUser = userId,
+                        textChat = "",
+                        statusChat = "",
+                        sendAtChat = null,
+                        idVacancy = null,
+                        idDirector = CurrentUser.id ?: 0,
+                        emailAdmin = null,
+                        senderChat = ""
+                    )
+                    selectedChat = ChatDTO(
+                        chat = chat,
+                        nameCompany = null,
+                        nameVacancy = null,
+                        fioUser = null
+                    )
+                    navigateTo(31)
                 }
             )
 
             23 -> CreateVacancyScreen(
                 api = api,
                 onBack = { goBack() },
-                onSuccess = { goBack() }
+                onSuccess = { goBack() },
+                onNavigateToTariffs = { navigateTo(29) }
             )
 
             24 -> CompanyResponsesScreen(
@@ -321,15 +388,14 @@ fun App() {
                     selectedVacancyId = vacancyId
                     navigateTo(5)
                 },
-                onResponseUpdated = {
-                }
+                onResponseUpdated = { }
             )
 
             25 -> CompanySettingsScreen(
                 api = api,
                 onNavigate = globalNavigate,
                 onNavigateToChats = { navigateTo(11) },
-                onNavigateToTariffs = { navigateTo(20) },
+                onNavigateToTariffs = { navigateTo(29) },
                 onNavigateToArchive = {
                     responseType = "archive"
                     navigateTo(4)
@@ -337,6 +403,7 @@ fun App() {
                 onNavigateToFeedbacks = { navigateTo(27) },
                 onNavigateToArchiveShip = { navigateTo(28) },
                 onLogout = {
+                    userRole = "student"
                     navigationStack.clear()
                     navigationStack.add(0)
                 }
@@ -347,6 +414,7 @@ fun App() {
                 onNavigate = globalNavigate,
                 onSave = { goBack() }
             )
+
             27 -> CompanyFeedbacksScreen(
                 api = api,
                 onBack = { goBack() },
@@ -359,6 +427,7 @@ fun App() {
                     navigateTo(5)
                 }
             )
+
             28 -> CompanyArchiveScreen(
                 api = api,
                 onBack = { goBack() },
@@ -372,6 +441,101 @@ fun App() {
                 }
             )
 
+            29 -> CompanyTariffsScreen(
+                api = api,
+                onBack = { goBack() },
+                onSuccess = { goBack() }
+            )
+
+            30 -> CompanySearchScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToTariffs = { navigateTo(29) }
+            )
+
+            31 -> {
+                if (selectedChat == null) {
+                    goBack()
+                } else {
+                    ChatDetailScreen(
+                        api = api,
+                        chatDTO = selectedChat!!,
+                        onBack = { goBack() },
+                        onNavigateToVacancy = { vacancyId ->
+                            selectedVacancyId = vacancyId
+                            navigateTo(5)
+                        },
+                        onNavigateToCompany = { companyId ->
+                            selectedCompanyId = companyId
+                            navigateTo(15)
+                        },
+                        onNavigateToUser = { userId ->
+                            selectedUserId = userId
+                            navigateTo(22)
+                        },
+                        isCompany = userRole == "company" || userRole == "admin"
+                    )
+                }
+            }
+
+            // ========== АДМИН ==========
+            32 -> DashboardAdmin(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToStudentProfile = { studentId ->
+                    selectedUserId = studentId
+                    navigateTo(22)
+                },
+                onNavigateToCompanyProfile = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                }
+            )
+
+            33 -> AdminSearchScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToCompanyProfile = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                },
+                onNavigateToFeedbackDetail = { feedbackId ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(14)
+                }
+            )
+            34 -> ModerationScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToCompanyProfile = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
+                },
+                onNavigateToVacancyDetail = { vacancyId ->
+                    selectedVacancyId = vacancyId
+                    navigateTo(5)
+                },
+                onNavigateToFeedbackDetail = { feedbackId ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(14)
+                }
+            )
 
         }
     }

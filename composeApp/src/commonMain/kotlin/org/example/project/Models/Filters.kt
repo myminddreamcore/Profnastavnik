@@ -8,6 +8,7 @@ data class Filters(
     val sferes: List<String>? = null,
     val formats: List<String>? = null,
     val zenstart: Int? = null,
+    val iduser: Int? = null,
     val zenEnd: Int? = null,
     val user: Boolean? = null,
     val name: String? = null,

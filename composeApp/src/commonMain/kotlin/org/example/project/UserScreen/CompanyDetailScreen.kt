@@ -3,6 +3,8 @@ package org.example.project.UserScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,10 +21,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
 import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
 import org.example.project.Models.DirectorDTO
+import org.example.project.Models.FeedbacksUser
 
 @Composable
 fun CompanyDetailScreen(
@@ -30,15 +34,36 @@ fun CompanyDetailScreen(
     companyId: Int,
     onBack: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+
     var company by remember { mutableStateOf<DirectorDTO?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Отзывы
+    var allFeedbacks by remember { mutableStateOf<List<FeedbacksUser>>(emptyList()) }
+    var showAllFeedbacks by remember { mutableStateOf(false) }
+    var isLoadingFeedbacks by remember { mutableStateOf(false) }
+
+    // Загружаем компанию
     LaunchedEffect(companyId) {
         val result = api.getCompanyCard(companyId)
         if (result != null) {
             company = result
         }
         isLoading = false
+    }
+
+    // Функция загрузки отзывов (вызывается из корутины)
+    fun loadFeedbacks() {
+        if (allFeedbacks.isEmpty() && !isLoadingFeedbacks) {
+            scope.launch {
+                isLoadingFeedbacks = true
+                api.getCompanyFeedback(companyId)?.let { feedbacks ->
+                    allFeedbacks = feedbacks
+                }
+                isLoadingFeedbacks = false
+            }
+        }
     }
 
     Box(
@@ -64,6 +89,7 @@ fun CompanyDetailScreen(
                 ) {
                     Spacer(modifier = Modifier.height(40.dp))
 
+                    // Верхняя панель
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -90,6 +116,7 @@ fun CompanyDetailScreen(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
+                    // Логотип компании
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -112,6 +139,7 @@ fun CompanyDetailScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // Карточка с информацией о компании
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(32.dp),
@@ -131,6 +159,7 @@ fun CompanyDetailScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
+                            // Рейтинг
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.Center,
@@ -153,6 +182,7 @@ fun CompanyDetailScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
+                            // Контактная информация
                             Divider(
                                 color = Color.White.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -251,6 +281,7 @@ fun CompanyDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
 
+                            // Руководитель
                             Divider(
                                 color = Color.White.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -280,8 +311,6 @@ fun CompanyDetailScreen(
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
 
-
-
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Divider(
                                     color = Color.White.copy(alpha = 0.2f),
@@ -289,6 +318,7 @@ fun CompanyDetailScreen(
                                 )
                             }
 
+                            // Описание
                             Text(
                                 "О компании",
                                 color = Color.White,
@@ -342,12 +372,181 @@ fun CompanyDetailScreen(
                                     )
                                 }
                             }
+
+                            // ========== БЛОК ОТЗЫВОВ ==========
+                            Divider(
+                                color = Color.White.copy(alpha = 0.2f),
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Отзывы о компании",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                // Кнопка "Читать далее" если есть больше 1 отзыва
+                                if (allFeedbacks.size > 1) {
+                                    TextButton(
+                                        onClick = {
+                                            showAllFeedbacks = true
+                                            loadFeedbacks()
+                                        }
+                                    ) {
+                                        Text(
+                                            "Читать далее →",
+                                            color = Color(0xFF5399BC),
+                                            fontSize = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Отображаем отзывы
+                            if (allFeedbacks.isEmpty() && !isLoadingFeedbacks) {
+                                // Если отзывы не загружены - показываем кнопку загрузки
+                                Button(
+                                    onClick = { loadFeedbacks() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.White.copy(alpha = 0.1f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        "Загрузить отзывы",
+                                        color = Color.White
+                                    )
+                                }
+                            } else if (isLoadingFeedbacks) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White
+                                    )
+                                }
+                            } else {
+                                // Показываем отзывы
+                                val displayFeedbacks = if (showAllFeedbacks) {
+                                    allFeedbacks
+                                } else {
+                                    allFeedbacks.take(1) // Только первый отзыв
+                                }
+
+                                displayFeedbacks.forEach { feedback ->
+                                    FeedbackCard(feedback = feedback)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+
+                                // Если отзывов нет
+                                if (allFeedbacks.isEmpty()) {
+                                    Text(
+                                        "Нет отзывов о компании",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            // Если показаны все отзывы - кнопка "Скрыть"
+                            if (showAllFeedbacks && allFeedbacks.size > 1) {
+                                TextButton(
+                                    onClick = { showAllFeedbacks = false },
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                ) {
+                                    Text(
+                                        "Скрыть отзывы",
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(40.dp))
                 }
             }
+        }
+    }
+}
+
+// Компонент для отображения одного отзыва
+@Composable
+fun FeedbackCard(feedback: FeedbacksUser) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.08f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Верхняя строка: имя пользователя + рейтинг
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                     "Студент",
+                    color = Color(0xFF5399BC),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                // Рейтинг в звёздах
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val rating = feedback.ratingFeedbackUser ?: 0
+                    repeat(rating) {
+                        Icon(
+                            Icons.Default.Star,
+                            null,
+                            tint = Color(0xFFFFB74D),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    repeat(5 - rating) {
+                        Icon(
+                            Icons.Default.StarBorder,
+                            null,
+                            tint = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Текст отзыва
+            Text(
+                feedback.descriptionFeedbackUser ?: "Нет текста отзыва",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                maxLines = if (true) Int.MAX_VALUE else 3
+            )
+
+
         }
     }
 }

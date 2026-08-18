@@ -26,13 +26,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.IO
+import org.example.project.Models.AdminSearchFilters
+import org.example.project.Models.AdminSearchResult
 import org.example.project.Models.Adress
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
+import org.example.project.Models.CompanyPaymentChartDTO
+import org.example.project.Models.CompanyPrice
 import org.example.project.Models.Complaint
 import org.example.project.Models.ComplaintDTO
 import org.example.project.Models.CreateVacancyDTO
 import org.example.project.Models.Currency
+import org.example.project.Models.DashboardStatsDTO
 import org.example.project.Models.Director
 import org.example.project.Models.DirectorDTO
 import org.example.project.Models.FeedbacksCompany
@@ -41,11 +46,25 @@ import org.example.project.Models.FeedbacksUserDTO
 import org.example.project.Models.Filters
 import org.example.project.Models.Formats
 import org.example.project.Models.Intership
+import org.example.project.Models.ModerationItems
 import org.example.project.Models.MoneyType
+import org.example.project.Models.NewUsersChartDTO
+import org.example.project.Models.PaymentChartDTO
+import org.example.project.Models.PricesForCompany
 import org.example.project.Models.PricesForUser
+import org.example.project.Models.PriorityResponseDTO
 import org.example.project.Models.ResponciesDTO
 import org.example.project.Models.Response
 import org.example.project.Models.Sferes
+import org.example.project.Models.StudentPaymentChartDTO
+import org.example.project.Models.StudentSearchFilters
+import org.example.project.Models.StudentSearchResult
+import org.example.project.Models.SuccessInternshipChartDTO
+import org.example.project.Models.TopCompanyDTO
+import org.example.project.Models.TopStudentAdminDTO
+import org.example.project.Models.TopStudentDTO
+import org.example.project.Models.TopUniversityDTO
+import org.example.project.Models.UserChurnChartDTO
 import org.example.project.Models.UserPrice
 
 class ApiClient {
@@ -59,6 +78,434 @@ class ApiClient {
     }
 
     private val BASE_URL = "http://10.0.2.2:5131/api/"
+
+    // В ApiClient.kt добавь эти методы:
+
+    // Топ-3 компании
+    suspend fun getTopCompanies(): List<TopCompanyDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetTopCompanies"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<TopCompanyDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Топ-3 студента
+    suspend fun getTopStudentsAdmin(): List<TopStudentAdminDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetTopStudents"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<TopStudentAdminDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Топ-3 университета
+    suspend fun getTopUniversities(): List<TopUniversityDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetTopUniversities"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<TopUniversityDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // График оплат (общий)
+    suspend fun getPaymentsChart(): List<PaymentChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetPaymentsChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<PaymentChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // График оплат студентов
+    suspend fun getStudentPaymentsChart(): List<StudentPaymentChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetStudentPaymentsChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<StudentPaymentChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // График оплат компаний
+    suspend fun getCompanyPaymentsChart(): List<CompanyPaymentChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetCompanyPaymentsChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<CompanyPaymentChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    // В ApiClient.kt добавь:
+
+    // Получить все сущности на модерации
+    suspend fun getModerationItems(): ModerationItems? {
+        return try {
+            val url = "${BASE_URL}Admin/GetModerationItems"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<ModerationItems>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // График новых пользователей
+    suspend fun getNewUsersChart(): List<NewUsersChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetNewUsersChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<NewUsersChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // График ухода пользователей
+    suspend fun getUserChurnChart(): List<UserChurnChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetUserChurnChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<UserChurnChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+// В ApiClient.kt добавь:
+
+    // Изменение статуса пользователя (студента)
+    suspend fun updateUserStatus(userId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Admin/UpdateUserStatus/${userId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Изменение статуса компании
+    suspend fun updateCompanyStatus(companyId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Admin/UpdateCompanyStatus/${companyId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Изменение статуса вакансии
+    suspend fun updateVacancyStatus(vacancyId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Admin/UpdateVacancyStatus/${vacancyId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Изменение статуса отзыва о студенте (FeedbacksCompany)
+    suspend fun updateFeedbackCompanyStatus(feedbackId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Admin/UpdateFeedbackCompanyStatus/${feedbackId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Изменение статуса отзыва о компании (FeedbacksUser)
+    suspend fun updateFeedbackUserStatus(feedbackId: Int, status: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Admin/UpdateFeedbackUserStatus/${feedbackId}/${status}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Поиск для админа
+    suspend fun adminSearch(filters: AdminSearchFilters): List<AdminSearchResult>? {
+        return try {
+            val url = "${BASE_URL}Admin/Search"
+            println("Admin search: $url")
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(filters)
+            }
+            println("Response: ${response.status}")
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<AdminSearchResult>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Получить вакансию по ID для админа
+    suspend fun getVacancyById(vacancyId: Int): CardVacancy? {
+        return try {
+            val url = "${BASE_URL}Vacancy/GetVacancy/${vacancyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<CardVacancy>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    // График успешных стажировок
+    suspend fun getSuccessInternshipsChart(): List<SuccessInternshipChartDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetSuccessInternshipsChart"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<SuccessInternshipChartDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Общая статистика
+    suspend fun getDashboardStats(): DashboardStatsDTO? {
+        return try {
+            val url = "${BASE_URL}Admin/GetDashboardStats"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<DashboardStatsDTO>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun sendVerificationCode(email: String): Boolean {
+        return try {
+            val url = "${BASE_URL}User/SendVerificationCode"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("email" to email))
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun verifyCode(email: String, code: String): Boolean {
+        return try {
+            val url = "${BASE_URL}User/VerifyCode"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("email" to email, "code" to code))
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun register(user: User): User? {
+        return try {
+            val url = "${BASE_URL}User/Register"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(user)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<User>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun createStudent(student: Student): Boolean {
+        return try {
+            val url = "${BASE_URL}User/CreateStudent"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(student)
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun createDirector(director: Director): Boolean {
+        return try {
+            val url = "${BASE_URL}Company/CreateDirector"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(director)
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun resetPassword(email: String, newPassword: String): Boolean {
+        return try {
+            val url = "${BASE_URL}User/ResetPassword"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("email" to email, "newPassword" to newPassword))
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
     suspend fun getUserResponseCount(userId: Int): Int? {
         return try {
             val url = "${BASE_URL}User/GetUserCountResponce/${userId}"
@@ -210,6 +657,132 @@ class ApiClient {
             if (response.status.value in 200..299) {
                 val jsonString = response.bodyAsText()
                 Json.decodeFromString<Intership>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getAllCompanyTariffs(): List<PricesForCompany>? {
+        return try {
+            val url = "${BASE_URL}Company/GetAllCompanyTarrifs"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<PricesForCompany>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getPriorityResponses(companyId: Int): List<PriorityResponseDTO>? {
+        return try {
+            val url = "${BASE_URL}Company/GetPriorityResponses/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<PriorityResponseDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompanyResponsesCount(companyId: Int): Int? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyResponsesCount/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                jsonString.toIntOrNull()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getTopStudents(companyId: Int): List<TopStudentDTO>? {
+        return try {
+            val url = "${BASE_URL}Company/GetTopStudents/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<TopStudentDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun searchStudents(filters: StudentSearchFilters): List<StudentSearchResult>? {
+        return try {
+            val url = "${BASE_URL}Company/SearchStudents"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(filters)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<StudentSearchResult>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getCompanyTariff(companyId: Int): CompanyPrice? {
+        return try {
+            val url = "${BASE_URL}Company/GetCompanyTarriff/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<CompanyPrice>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun addNewCompanyPrice(companyPrice: CompanyPrice): CompanyPrice? {
+        return try {
+            val url = "${BASE_URL}Company/AddNewCompanyPrice"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(companyPrice)
+            }
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<CompanyPrice>(jsonString)
             } else {
                 null
             }
@@ -472,6 +1045,26 @@ class ApiClient {
             false
         }
     }
+    suspend fun getUserFeedbacksCompany(userId: Int): List<FeedbacksCompany>? {
+        return try {
+            val url = "${BASE_URL}User/GetUserFeedback/${userId}"
+            println("Getting user feedbacks: $url")
+            val response = client.get(url)
+            println("Response: ${response.status}")
+
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<FeedbacksCompany>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error getting user feedbacks: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+
     suspend fun getCompanyFeedback(companyId: Int): List<FeedbacksUser>? {
         return try {
             val url = "${BASE_URL}Company/GetCompanyFeedback/${companyId}"
@@ -593,9 +1186,12 @@ class ApiClient {
     }
     suspend fun login(user: User): User? {
         return try {
-            val url = "${BASE_URL}User/Authorization/${user.emailUser}/${user.passwordUser}"
+            val url = "${BASE_URL}User/Authorization"
             println(url)
-            val response = client.post(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(user)
+            }
             println(response)
             if (response.status.value in 200..299) {
                 response.body<User>()
@@ -1035,23 +1631,7 @@ class ApiClient {
         }
     }
 
-    suspend fun register(user: User): String? {
-        return try {
-            val response = client.post("${BASE_URL}User/Registration") {
-                contentType(io.ktor.http.ContentType.Application.Json)
-                setBody(user)
-            }
 
-            when (response.status.value) {
-                in 200..299 -> null
-                400 -> "Пользователь с таким email уже существует"
-                else -> "Ошибка сервера: ${response.status.value}"
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            "Проверьте интернет-соединение"
-        }
-    }
     suspend fun getrejectedVacancy(user: Student): List<Listresponcies>? {
         return try {
             val url = "${BASE_URL}Responces/GetUserRejectedIntership/${user.idStudent}"

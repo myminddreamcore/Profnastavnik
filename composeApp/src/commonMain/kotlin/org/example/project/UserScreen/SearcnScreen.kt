@@ -56,12 +56,13 @@ fun SearchScreen(
     var allSkills by remember { mutableStateOf<List<Skills>>(emptyList()) }
     var allSpheres by remember { mutableStateOf<List<Sferes>>(emptyList()) }
     var allFormats by remember { mutableStateOf<List<Formats>>(emptyList()) }
-
+    var iduser by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         val user = Student(
             idStudent = CurrentUser.id ?: 0,
             emailStudent = CurrentUser.email ?: ""
         )
+        iduser = user.idStudent
         val count = api.getCountUsermessages(user)
         if (count != null) messageCount = count
 
@@ -90,6 +91,7 @@ fun SearchScreen(
                 formats = if (selectedFormats.isNotEmpty()) selectedFormats else null,
                 zenstart = minSalary.toIntOrNull(),
                 zenEnd = maxSalary.toIntOrNull(),
+                iduser = iduser,
                 user = if (hasMentor) true else null,
                 name = if (searchQuery.isNotBlank()) searchQuery else null
             )

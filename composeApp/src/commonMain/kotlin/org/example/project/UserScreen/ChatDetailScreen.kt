@@ -36,6 +36,7 @@ fun ChatDetailScreen(
     onBack: () -> Unit,
     onNavigateToVacancy: (Int) -> Unit,
     onNavigateToCompany: (Int) -> Unit,
+    onNavigateToUser: (Int) -> Unit,
     isCompany: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
@@ -261,9 +262,16 @@ fun ChatDetailScreen(
                 title = {
                     Column(
                         modifier = Modifier.clickable {
-                            if (isCompanyChat && recipientId != null) {
+                            if (isCompanyChat && isAdminChat ) {
+
+                            }
+                            else if (isCompanyChat && chat.idUser != null && chat.idUser!=0 && isCompany==true) {
+                                onNavigateToUser(chat.idUser)
+                            }
+                            else if (isCompanyChat && recipientId != null && isCompany==false) {
                                 onNavigateToCompany(recipientId)
                             }
+
                         }
                     ) {
                         Text(
@@ -306,8 +314,7 @@ fun ChatDetailScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Блок стажировки (только для компании)
-                    if (isCompany) {
+                    if (isCompany && !isAdminChat) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -413,6 +420,7 @@ fun ChatDetailScreen(
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
+
                     }
 
                     LazyColumn(
@@ -537,6 +545,7 @@ fun ChatDetailScreen(
         )
     }
 }
+
 
 @Composable
 fun MessageBubble(

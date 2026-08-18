@@ -28,6 +28,7 @@ import org.example.project.Models.CurrentUser
 import org.example.project.Models.Director
 import org.example.project.Models.Listresponcies
 import org.example.project.Models.ResponciesDTO
+import org.example.project.Models.TopStudentDTO
 import org.example.project.UserScreen.CustomBottomNavigation
 
 @Composable
@@ -46,14 +47,21 @@ fun DashboardCompany(
     var isLoading by remember { mutableStateOf(true) }
     var showArchiveDialog by remember { mutableStateOf(false) }
     var selectedVacancyId by remember { mutableStateOf<Int?>(null) }
-    // Добавляем состояние для хранения полных данных о вакансиях
+    var topStudents by remember { mutableStateOf<List<TopStudentDTO>>(emptyList()) }
+    var isLoadingTopStudents by remember { mutableStateOf(true) }
+    var isTariffCorporate by remember { mutableStateOf(false) }
     var vacancyDetails by remember { mutableStateOf<Map<Int, CardVacancy>>(emptyMap()) }
     val scope = rememberCoroutineScope()
 
     fun loadData() {
         scope.launch {
             isLoading = true
+            isLoadingTopStudents = true
             val director = Director(idDirector = CurrentUser.id ?: 0)
+
+            // Загружаем тариф
+            val tariff = api.getCompanyTariff(CurrentUser.id ?: 0)
+            isTariffCorporate = tariff?.idPrice == 3
 
             val fetchedMessages = api.getCountCompanymessages(director)
             val fetchedVacancies = api.getCompanyVacancies(director)
@@ -63,7 +71,6 @@ fun DashboardCompany(
             if (fetchedVacancies != null) {
                 vacancies = fetchedVacancies
 
-                // Загружаем полные данные для каждой вакансии
                 val detailsMap = mutableMapOf<Int, CardVacancy>()
                 fetchedVacancies.forEach { vacancy ->
                     vacancy.idVacancy?.let { id ->
@@ -75,7 +82,6 @@ fun DashboardCompany(
                 }
                 vacancyDetails = detailsMap
 
-                // Сортируем вакансии на основе статуса из полных данных
                 vacancies = fetchedVacancies.sortedBy { vacancy ->
                     val detail = vacancy.idVacancy?.let { vacancyDetails[it] }
                     val status = detail?.vacancy?.statusVacancy
@@ -87,6 +93,15 @@ fun DashboardCompany(
                 }
             }
             if (fetchedResponses != null) responses = fetchedResponses
+
+            // Загружаем топ-студентов только для корпоративного тарифа
+            if (isTariffCorporate) {
+                val top = api.getTopStudents(CurrentUser.id ?: 0)
+                if (top != null) {
+                    topStudents = top
+                }
+            }
+            isLoadingTopStudents = false
             isLoading = false
         }
     }
@@ -125,8 +140,11 @@ fun DashboardCompany(
                 vacancies = vacancies,
                 vacancyDetails = vacancyDetails,
                 responses = responses,
+                topStudents = topStudents,
                 messageCount = messageCount,
                 isLoading = isLoading,
+                isLoadingTopStudents = isLoadingTopStudents,
+                isTariffCorporate = isTariffCorporate,
                 onNavigateToChats = onNavigateToChats,
                 onCreateVacancy = onCreateVacancy,
                 onViewResponses = onViewResponses,
@@ -140,7 +158,6 @@ fun DashboardCompany(
         }
     }
 
-    // Диалог подтверждения архивации
     if (showArchiveDialog) {
         AlertDialog(
             onDismissRequest = { showArchiveDialog = false },
@@ -199,8 +216,11 @@ fun CompanyDashboardContent(
     vacancies: List<Listresponcies>,
     vacancyDetails: Map<Int, CardVacancy>,
     responses: List<ResponciesDTO>,
+    topStudents: List<TopStudentDTO>,
     messageCount: Int,
     isLoading: Boolean,
+    isLoadingTopStudents: Boolean,
+    isTariffCorporate: Boolean,
     onNavigateToChats: () -> Unit,
     onCreateVacancy: () -> Unit,
     onViewResponses: () -> Unit,
@@ -300,29 +320,56 @@ fun CompanyDashboardContent(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Text("Отклики", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLoading) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        } else {
-            if (responses.isEmpty()) {
+
+        // Топ-10 студентов (только для корпоративного тарифа)
+        if (isTariffCorporate) {
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    "Нет откликов на ваши вакансии",
+                    "Топ-10 лучших студентов",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Surface(
+                    color = Color(0xFFFFB74D).copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "Корпоративный тариф",
+                        color = Color(0xFFFFB74D),
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoadingTopStudents) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            } else if (topStudents.isEmpty()) {
+                Text(
+                    "Нет данных для отображения",
                     color = Color.White.copy(alpha = 0.6f),
                     modifier = Modifier.padding(vertical = 20.dp)
                 )
             } else {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    responses.forEach { response ->
-                        ResponseCard(
-                            item = response,
-                            onViewProfile = { onNavigateToUserProfile(response.idUser ?: 0) },
-                            onViewVacancy = { onNavigateToVacancyDetail(response.idVacancy ?: 0) }
+                    topStudents.forEach { student ->
+                        TopStudentCard(
+                            student = student,
+                            onClick = { onNavigateToUserProfile(student.idStudent) }
                         )
                     }
                 }
@@ -330,6 +377,167 @@ fun CompanyDashboardContent(
         }
 
         Spacer(modifier = Modifier.height(30.dp))
+    }
+}
+@Composable
+fun TopStudentCard(
+    student: TopStudentDTO,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(180.dp)  // Уменьшил ширину
+            .height(240.dp) // Уменьшил высоту
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.15f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp) // Уменьшил отступы
+        ) {
+            // Рейтинг
+            Surface(
+                color = Color(0xFFFFB74D).copy(alpha = 0.2f),
+                shape = CircleShape,
+                modifier = Modifier.size(28.dp) // Уменьшил размер
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        "${student.totalScore.toInt()}",
+                        color = Color(0xFFFFB74D),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // ФИО
+            Text(
+                student.fullName ?: "Студент",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Курс и университет в одну строку
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (student.courseStudent != null) {
+                    Text(
+                        "${student.courseStudent} курс",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp
+                    )
+                }
+                if (!student.universityStudent.isNullOrBlank()) {
+                    Text(
+                        "• ${student.universityStudent ?: ""}",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Статистика в ряд (2 строки по 2 чипа)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    SmallStatChip(
+                        label = "Совместимость",
+                        value = "${student.vacancyCompatibility.toInt()}%",
+                        color = Color(0xFF7B61FF)
+                    )
+                    SmallStatChip(
+                        label = "Стажировки",
+                        value = "${student.completedInternships}",
+                        color = Color(0xFF00E676)
+                    )
+
+                }
+
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Навыки (первые 2)
+            if (!student.skills.isNullOrEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    student.skills?.take(2)?.forEach { skill ->
+                        Surface(
+                            color = Color(0xFF5399BC).copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                skill,
+                                color = Color.White,
+                                fontSize = 8.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    if ((student.skills?.size ?: 0) > 2) {
+                        Text(
+                            "+${(student.skills?.size ?: 0) - 2}",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SmallStatChip(
+    label: String,
+    value: String,
+    color: Color
+) {
+    Surface(
+        color = color.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                value,
+                color = color,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                label,
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 7.sp
+            )
+        }
     }
 }
 
@@ -368,7 +576,6 @@ fun CompanyVacancyCard(
     val isOnModeration = vacancy?.statusVacancy == "На модерации"
     val isArchived = vacancy?.statusVacancy == "Архив"
 
-    // Не показываем архивные вакансии
     if (isArchived) return
 
     if (vacancyDetail == null) {

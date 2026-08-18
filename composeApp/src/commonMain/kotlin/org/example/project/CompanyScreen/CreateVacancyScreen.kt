@@ -30,7 +30,8 @@ import org.example.project.Models.*
 fun CreateVacancyScreen(
     api: ApiClient,
     onBack: () -> Unit,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
+    onNavigateToTariffs: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
@@ -63,6 +64,11 @@ fun CreateVacancyScreen(
     var showSuccess by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
 
+    var companyPrice by remember { mutableStateOf<CompanyPrice?>(null) }
+    var existingVacancies by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
+    var isLoadingTariff by remember { mutableStateOf(true) }
+    var showTariffLimitDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(showSuccess) {
         if (showSuccess) {
             snackbarHostState.showSnackbar(successMessage)
@@ -72,16 +78,58 @@ fun CreateVacancyScreen(
     }
 
     LaunchedEffect(Unit) {
+        isLoadingData = true
+        isLoadingTariff = true
+
+        val companyId = CurrentUser.id ?: 0
+
         val money = api.getMoneyTypes()
         if (money != null) moneyTypes = money
 
         val currency = api.getCurrencies()
         if (currency != null) currencies = currency
 
+        val tariff = api.getCompanyTariff(companyId)
+        companyPrice = tariff
+
+        val director = Director(idDirector = companyId)
+        val vacancies = api.getCompanyVacancies(director)
+        if (vacancies != null) {
+            existingVacancies = vacancies
+        }
+
         isLoadingData = false
+        isLoadingTariff = false
+    }
+
+    fun canCreateVacancy(): Boolean {
+        val tariffId = companyPrice?.idPrice ?: 1
+        val currentCount = existingVacancies.size
+
+        return when (tariffId) {
+            1 -> currentCount < 1
+            2 -> currentCount < 5
+            3 -> true
+            else -> false
+        }
+    }
+
+    fun getVacancyLimit(): Int {
+        val tariffId = companyPrice?.idPrice ?: 1
+        return when (tariffId) {
+            1 -> 1
+            2 -> 5
+            3 -> Int.MAX_VALUE
+            else -> 0
+        }
     }
 
     fun createVacancy() {
+        if (!canCreateVacancy()) {
+            showTariffLimitDialog = true
+            return
+        }
+
         if (nameVacancy.isBlank()) {
             errorMessage = "Введите название вакансии"
             return
@@ -170,315 +218,422 @@ fun CreateVacancyScreen(
                 .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
                 .padding(padding)
         ) {
-            if (isLoadingData) {
+            if (isLoadingData || isLoadingTariff) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = Color.White)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Загрузка...", color = Color.White)
+                    }
                 }
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(24.dp)
-                ) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = nameVacancy,
-                        onValueChange = { nameVacancy = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Название вакансии", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = descriptionVacancy,
-                        onValueChange = { descriptionVacancy = it },
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Фиксированная информация о тарифе (НЕ СКРОЛЛИТСЯ)
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp),
-                        label = { Text("Описание", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = timeVacancy,
-                        onValueChange = { timeVacancy = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Длительность (например: 3 месяца)", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = countUserVacancy,
-                        onValueChange = { countUserVacancy = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Количество стажеров", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Box {
-                        OutlinedTextField(
-                            value = selectedMoneyType?.nameMoneyType ?: "",
-                            onValueChange = {},
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF5399BC).copy(alpha = 0.2f)
+                        )
+                    ) {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { expandedMoney = !expandedMoney },
-                            readOnly = true,
-                            label = { Text("Тип оплаты", color = Color.White.copy(alpha = 0.7f)) },
-                            trailingIcon = {
-                                IconButton(onClick = { expandedMoney = !expandedMoney }) {
-                                    Icon(
-                                        if (expandedMoney) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                                        null,
-                                        tint = Color.White
-                                    )
-                                }
-                            },
-                            colors = textFieldColors()
-                        )
-
-                        DropdownMenu(
-                            expanded = expandedMoney,
-                            onDismissRequest = { expandedMoney = false },
-                            modifier = Modifier.background(Color(0xFF2D3243))
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            moneyTypes.forEach { type ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            type.nameMoneyType ?: "",
-                                            color = Color.White
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedMoneyType = type
-                                        expandedMoney = false
-                                    }
+                            Column {
+                                Text(
+                                    "Тариф: ${getTariffName(companyPrice?.idPrice ?: 1)}",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    "Вакансий: ${existingVacancies.size} из ${if (getVacancyLimit() == Int.MAX_VALUE) "∞" else getVacancyLimit()}",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 12.sp
                                 )
                             }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = zenStartVacancy,
-                            onValueChange = { zenStartVacancy = it },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Зарплата от", color = Color.White.copy(alpha = 0.7f)) },
-                            colors = textFieldColors()
-                        )
-                        OutlinedTextField(
-                            value = zenEndVacancy,
-                            onValueChange = { zenEndVacancy = it },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("до", color = Color.White.copy(alpha = 0.7f)) },
-                            colors = textFieldColors()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Box {
-                        OutlinedTextField(
-                            value = selectedCurrency?.nameCurrency ?: "",
-                            onValueChange = {},
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { expandedCurrency = !expandedCurrency },
-                            readOnly = true,
-                            label = { Text("Валюта", color = Color.White.copy(alpha = 0.7f)) },
-                            trailingIcon = {
-                                IconButton(onClick = { expandedCurrency = !expandedCurrency }) {
-                                    Icon(
-                                        if (expandedCurrency) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                                        null,
-                                        tint = Color.White
-                                    )
-                                }
-                            },
-                            colors = textFieldColors()
-                        )
-
-                        DropdownMenu(
-                            expanded = expandedCurrency,
-                            onDismissRequest = { expandedCurrency = false },
-                            modifier = Modifier.background(Color(0xFF2D3243))
-                        ) {
-                            currencies.forEach { currency ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            currency.nameCurrency ?: "",
-                                            color = Color.White
-                                        )
-                                    },
-                                    onClick = {
-                                        selectedCurrency = currency
-                                        expandedCurrency = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = hasMentor,
-                            onCheckedChange = { hasMentor = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Color(0xFF5399BC))
-                        )
-                        Text("Есть наставник", color = Color.White)
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Divider(
-                        color = Color.White.copy(alpha = 0.2f),
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-
-                    Text(
-                        "Адрес",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = cityAdress,
-                        onValueChange = { cityAdress = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Город", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = streetAdress,
-                        onValueChange = { streetAdress = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Улица", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = houseAdress,
-                            onValueChange = { houseAdress = it },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Дом", color = Color.White.copy(alpha = 0.7f)) },
-                            colors = textFieldColors()
-                        )
-                        OutlinedTextField(
-                            value = flatAdress,
-                            onValueChange = { flatAdress = it },
-                            modifier = Modifier.weight(1f),
-                            label = { Text("Квартира", color = Color.White.copy(alpha = 0.7f)) },
-                            colors = textFieldColors()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = indexAdress,
-                        onValueChange = { indexAdress = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Индекс", color = Color.White.copy(alpha = 0.7f)) },
-                        colors = textFieldColors()
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    if (errorMessage != null) {
-                        Text(
-                            errorMessage!!,
-                            color = Color.Red,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                    Button(
-                        onClick = { createVacancy() },
-                        enabled = !isLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(28.dp)),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        listOf(Color(0xFF4A90E2), Color(0xFF7B61FF))
+                            if (!canCreateVacancy()) {
+                                Button(
+                                    onClick = { onNavigateToTariffs() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFFF9800)
                                     ),
-                                    shape = RoundedCornerShape(28.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White
-                                )
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(32.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        "Создать вакансию",
-                                        color = Color.White,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Text("Повысить", color = Color.White, fontSize = 11.sp)
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    // СКРОЛЛИМАЯ ЧАСТЬ
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = nameVacancy,
+                            onValueChange = { nameVacancy = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Название вакансии", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = descriptionVacancy,
+                            onValueChange = { descriptionVacancy = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            label = { Text("Описание", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = timeVacancy,
+                            onValueChange = { timeVacancy = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Длительность", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = countUserVacancy,
+                            onValueChange = { countUserVacancy = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Количество стажеров", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Box {
+                            OutlinedTextField(
+                                value = selectedMoneyType?.nameMoneyType ?: "",
+                                onValueChange = {},
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { expandedMoney = !expandedMoney },
+                                readOnly = true,
+                                label = { Text("Тип оплаты", color = Color.White.copy(alpha = 0.7f)) },
+                                trailingIcon = {
+                                    IconButton(onClick = { expandedMoney = !expandedMoney }) {
+                                        Icon(
+                                            if (expandedMoney) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                            null,
+                                            tint = Color.White
+                                        )
+                                    }
+                                },
+                                colors = textFieldColors()
+                            )
+
+                            DropdownMenu(
+                                expanded = expandedMoney,
+                                onDismissRequest = { expandedMoney = false },
+                                modifier = Modifier.background(Color(0xFF2D3243))
+                            ) {
+                                moneyTypes.forEach { type ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                type.nameMoneyType ?: "",
+                                                color = Color.White
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedMoneyType = type
+                                            expandedMoney = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = zenStartVacancy,
+                                onValueChange = { zenStartVacancy = it },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Зарплата от", color = Color.White.copy(alpha = 0.7f)) },
+                                colors = textFieldColors()
+                            )
+                            OutlinedTextField(
+                                value = zenEndVacancy,
+                                onValueChange = { zenEndVacancy = it },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("до", color = Color.White.copy(alpha = 0.7f)) },
+                                colors = textFieldColors()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Box {
+                            OutlinedTextField(
+                                value = selectedCurrency?.nameCurrency ?: "",
+                                onValueChange = {},
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { expandedCurrency = !expandedCurrency },
+                                readOnly = true,
+                                label = { Text("Валюта", color = Color.White.copy(alpha = 0.7f)) },
+                                trailingIcon = {
+                                    IconButton(onClick = { expandedCurrency = !expandedCurrency }) {
+                                        Icon(
+                                            if (expandedCurrency) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                            null,
+                                            tint = Color.White
+                                        )
+                                    }
+                                },
+                                colors = textFieldColors()
+                            )
+
+                            DropdownMenu(
+                                expanded = expandedCurrency,
+                                onDismissRequest = { expandedCurrency = false },
+                                modifier = Modifier.background(Color(0xFF2D3243))
+                            ) {
+                                currencies.forEach { currency ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                currency.nameCurrency ?: "",
+                                                color = Color.White
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedCurrency = currency
+                                            expandedCurrency = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = hasMentor,
+                                onCheckedChange = { hasMentor = it },
+                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF5399BC))
+                            )
+                            Text("Есть наставник", color = Color.White)
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Divider(
+                            color = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Text(
+                            "Адрес",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = cityAdress,
+                            onValueChange = { cityAdress = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Город", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = streetAdress,
+                            onValueChange = { streetAdress = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Улица", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = houseAdress,
+                                onValueChange = { houseAdress = it },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Дом", color = Color.White.copy(alpha = 0.7f)) },
+                                colors = textFieldColors()
+                            )
+                            OutlinedTextField(
+                                value = flatAdress,
+                                onValueChange = { flatAdress = it },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Квартира", color = Color.White.copy(alpha = 0.7f)) },
+                                colors = textFieldColors()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = indexAdress,
+                            onValueChange = { indexAdress = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Индекс", color = Color.White.copy(alpha = 0.7f)) },
+                            colors = textFieldColors()
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        if (errorMessage != null) {
+                            Text(
+                                errorMessage!!,
+                                color = Color.Red,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        Button(
+                            onClick = { createVacancy() },
+                            enabled = !isLoading,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(28.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            listOf(Color(0xFF4A90E2), Color(0xFF7B61FF))
+                                        ),
+                                        shape = RoundedCornerShape(28.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            "Создать вакансию",
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(40.dp))
+                    }
                 }
             }
         }
+    }
+
+    if (showTariffLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showTariffLimitDialog = false },
+            title = {
+                Text(
+                    "Лимит вакансий исчерпан",
+                    color = Color(0xFFFF9800),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        "Вы достигли лимита вакансий в вашем тарифе.",
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Перейдите на тариф Корпоративный для неограниченного количества вакансий!",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showTariffLimitDialog = false
+                        onNavigateToTariffs()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC))
+                ) {
+                    Text("Перейти к тарифам", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showTariffLimitDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.6f))
+                ) {
+                    Text("Отмена", color = Color.White.copy(alpha = 0.6f))
+                }
+            }
+        )
+    }
+}
+
+fun getTariffName(tariffId: Int): String {
+    return when (tariffId) {
+        1 -> "Базовый"
+        2 -> "Бизнес"
+        3 -> "Корпоративный"
+        else -> "Неизвестно"
     }
 }
 

@@ -30,25 +30,7 @@ import org.example.project.Models.CurrentUser
 import org.example.project.Models.Response
 import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.UserPrice
-@Composable
-fun InfoBadge(text: String) {
-    Box(
-        modifier = Modifier
-            .background(
-                Color.White.copy(alpha = 0.2f),
-                RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text,
-            color = Color.White,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
-        )
-    }
-}
+
 @Composable
 fun VacancyDetailScreen(
     api: ApiClient,
@@ -69,8 +51,15 @@ fun VacancyDetailScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var reviews by remember { mutableStateOf<List<FeedbacksUser>>(emptyList()) }
     var showReviews by remember { mutableStateOf(false) }
+
+    // Тариф студента
     var userPrice by remember { mutableStateOf<UserPrice?>(null) }
-    var responseCount by remember { mutableStateOf(0) }
+    var userResponseCount by remember { mutableStateOf(0) }
+
+    // Тариф компании
+    var companyTariff by remember { mutableStateOf<Int?>(null) }
+    var companyTotalResponses by remember { mutableStateOf(0) }
+
     var isLoadingPrice by remember { mutableStateOf(true) }
     var showLimitDialog by remember { mutableStateOf(false) }
 
@@ -94,6 +83,14 @@ fun VacancyDetailScreen(
                     if (reviewsResult != null) {
                         reviews = reviewsResult
                     }
+
+                    if (!isCompany) {
+                        val tariff = api.getCompanyTariff(companyId)
+                        companyTariff = tariff?.idPrice
+
+                        val count = api.getCompanyResponsesCount(companyId)
+                        companyTotalResponses = count ?: 0
+                    }
                 }
             }
         }
@@ -101,10 +98,9 @@ fun VacancyDetailScreen(
         if (!isCompany) {
             val price = api.getUserPrice(userId)
             userPrice = price
-            if (price?.idPrices == 1) {
-                val count = api.getUserResponseCount(userId)
-                responseCount = count ?: 0
-            }
+
+            val count = api.getUserResponseCount(userId)
+            userResponseCount = count ?: 0
         }
         isLoadingPrice = false
         isLoading = false
@@ -112,12 +108,23 @@ fun VacancyDetailScreen(
 
     fun checkCanRespond(): Boolean {
         if (isCompany) return false
-        val price = userPrice
-        return if (price?.idPrices == 1) {
-            responseCount < 5
-        } else {
-            true
+
+        val userLimit = when (userPrice?.idPrices) {
+            1 -> 5
+            else -> Int.MAX_VALUE
         }
+
+        val companyLimit = when (companyTariff) {
+            1 -> 5
+            2 -> 20
+            3 -> Int.MAX_VALUE
+            else -> Int.MAX_VALUE
+        }
+
+        if (userResponseCount >= userLimit) return false
+        if (companyTotalResponses >= companyLimit) return false
+
+        return true
     }
 
     fun sendResponse() {
@@ -155,9 +162,13 @@ fun VacancyDetailScreen(
                 showResponseDialog = false
                 coverLetter = ""
                 portfolioLink = ""
-                if (userPrice?.idPrices == 1) {
-                    val newCount = api.getUserResponseCount(userId)
-                    responseCount = newCount ?: responseCount + 1
+
+                val newUserCount = api.getUserResponseCount(userId)
+                userResponseCount = newUserCount ?: userResponseCount + 1
+
+                detail?.companyId?.let { companyId ->
+                    val newCompanyCount = api.getCompanyResponsesCount(companyId)
+                    companyTotalResponses = newCompanyCount ?: companyTotalResponses + 1
                 }
             } else {
                 errorMessage = "Вы уже откликались на эту вакансию"
@@ -184,6 +195,22 @@ fun VacancyDetailScreen(
                 val formats = data.formats?.joinToString(",\n")
                 val skills = data.skills?.joinToString(", ") ?: ""
                 val sferes = data.sferes?.joinToString(", ") ?: ""
+
+                val canRespond = checkCanRespond()
+
+                val userLimit = when (userPrice?.idPrices) {
+                    1 -> 5
+                    else -> Int.MAX_VALUE
+                }
+                val companyLimit = when (companyTariff) {
+                    1 -> 5
+                    2 -> 20
+                    3 -> Int.MAX_VALUE
+                    else -> Int.MAX_VALUE
+                }
+                val isUserLimitReached = userResponseCount >= userLimit
+                val isCompanyLimitReached = companyTotalResponses >= companyLimit
+                val isLimitReached = isUserLimitReached || isCompanyLimitReached
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -268,6 +295,18 @@ fun VacancyDetailScreen(
                                     color = Color.White,
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    data?.adress ?: "",
+                                    color = Color.White,
+                                    fontSize = 14.sp
+
+                                )
+                                Text(
+                                    v?.statusVacancy ?: "",
+                                    color = Color(0xFF5399BC),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
                                 )
 
                                 Spacer(modifier = Modifier.height(20.dp))
@@ -392,133 +431,108 @@ fun VacancyDetailScreen(
                         }
                     }
 
-                    if (reviews.isNotEmpty()) {
-                        item {
-                            Spacer(modifier = Modifier.height(8.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "Отзывы (${reviews.size})",
-                                    color = Color.White,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                TextButton(
-                                    onClick = { showReviews = !showReviews },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF5399BC))
-                                ) {
-                                    Text(if (showReviews) "Свернуть" else "Развернуть")
-                                }
-                            }
-                        }
-
-                        if (showReviews) {
-                            items(reviews) { review ->
-                                ReviewCard(review = review)
-                            }
-                        } else {
-                            item {
-                                val firstReview = reviews.firstOrNull()
-                                if (firstReview != null) {
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { showReviews = true },
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
-                                    ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                repeat(5) { index ->
-                                                    Icon(
-                                                        if (index < (firstReview.ratingFeedbackUser ?: 0))
-                                                            Icons.Default.Star
-                                                        else
-                                                            Icons.Default.StarBorder,
-                                                        null,
-                                                        tint = if (index < (firstReview.ratingFeedbackUser ?: 0))
-                                                            Color(0xFFFFB74D)
-                                                        else
-                                                            Color.White.copy(alpha = 0.3f),
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    "${firstReview.ratingFeedbackUser}/5",
-                                                    color = Color.White.copy(alpha = 0.5f),
-                                                    fontSize = 10.sp
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                firstReview.descriptionFeedbackUser ?: "Нет описания",
-                                                color = Color.White.copy(alpha = 0.7f),
-                                                fontSize = 12.sp,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                "Читать все ${reviews.size} отзывов...",
-                                                color = Color(0xFF5399BC),
-                                                fontSize = 11.sp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     if (!isCompany) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            if (userPrice?.idPrices == 1 && !isLoadingPrice) {
-                                val remaining = 5 - responseCount
+                            if (userPrice != null || companyTariff != null) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier.padding(12.dp)
                                     ) {
-                                        Icon(
-                                            if (remaining > 0) Icons.Default.Info else Icons.Default.Warning,
-                                            null,
-                                            tint = if (remaining > 0) Color(0xFF5399BC) else Color(0xFFFF9800),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            if (remaining > 0) "Осталось откликов в этом месяце: $remaining из 5"
-                                            else "Лимит откликов исчерпан. Перейдите на тариф Профи",
-                                            color = if (remaining > 0) Color.White.copy(alpha = 0.8f) else Color(0xFFFF9800),
-                                            fontSize = 12.sp
-                                        )
+                                        if (userPrice != null) {
+                                            val userLimitText = when (userPrice?.idPrices) {
+                                                1 -> "5"
+                                                else -> "∞"
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    if (userPrice?.idPrices == 1 && userResponseCount >= 5)
+                                                        Icons.Default.Warning
+                                                    else
+                                                        Icons.Default.Info,
+                                                    null,
+                                                    tint = if (userPrice?.idPrices == 1 && userResponseCount >= 5)
+                                                        Color(0xFFFF9800)
+                                                    else
+                                                        Color(0xFF5399BC),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    if (userPrice?.idPrices == 1)
+                                                        "Ваши отклики: $userResponseCount из $userLimitText"
+                                                    else
+                                                        "Ваши отклики: безлимит",
+                                                    color = if (userPrice?.idPrices == 1 && userResponseCount >= 5)
+                                                        Color(0xFFFF9800)
+                                                    else
+                                                        Color.White.copy(alpha = 0.8f),
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        }
+
+                                        if (companyTariff != null && companyTariff != 3) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            val companyLimitText = when (companyTariff) {
+                                                1 -> "5"
+                                                2 -> "20"
+                                                else -> "∞"
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    if (companyTotalResponses >= when (companyTariff) {
+                                                            1 -> 5
+                                                            2 -> 20
+                                                            else -> 0
+                                                        }) Icons.Default.Warning else Icons.Default.Info,
+                                                    null,
+                                                    tint = if (companyTotalResponses >= when (companyTariff) {
+                                                            1 -> 5
+                                                            2 -> 20
+                                                            else -> 0
+                                                        }) Color(0xFFFF9800) else Color(0xFF5399BC),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    "Откликов на компанию: $companyTotalResponses из $companyLimitText",
+                                                    color = if (companyTotalResponses >= when (companyTariff) {
+                                                            1 -> 5
+                                                            2 -> 20
+                                                            else -> 0
+                                                        }) Color(0xFFFF9800) else Color.White.copy(alpha = 0.8f),
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
 
                             GradientResponseButton(
-                                text = if (userPrice?.idPrices == 1 && responseCount >= 5) "Откликнуться (лимит исчерпан)" else "Откликнуться",
+                                text = if (isLimitReached) "Откликнуться (лимит исчерпан)" else "Откликнуться",
                                 icon = Icons.Default.Send,
                                 onClick = {
-                                    if (userPrice?.idPrices == 1 && responseCount >= 5) {
+                                    if (isLimitReached) {
                                         showLimitDialog = true
                                     } else {
                                         showResponseDialog = true
                                     }
                                 },
-                                gradient = if (userPrice?.idPrices == 1 && responseCount >= 5)
+                                gradient = if (isLimitReached)
                                     listOf(Color(0xFF9E9E9E), Color(0xFF757575))
                                 else
                                     listOf(Color(0xFF4A90E2), Color(0xFF7B61FF))
@@ -683,34 +697,93 @@ fun VacancyDetailScreen(
             },
             text = {
                 Column {
-                    Text(
-                        "У вас закончились бесплатные отклики на этом месяце.",
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Перейдите на тариф Профи, чтобы получать неограниченное количество откликов!",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 12.sp
-                    )
+                    if (userPrice?.idPrices == 1 && userResponseCount >= 5) {
+                        Text(
+                            "Вы исчерпали лимит своих откликов (5 в месяц).",
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Перейдите на тариф Профи для неограниченных откликов.",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                    } else if (companyTariff != null && companyTariff != 3 &&
+                        companyTotalResponses >= when (companyTariff) {
+                            1 -> 5
+                            2 -> 20
+                            else -> 0
+                        }) {
+                        Text(
+                            "Компания исчерпала лимит откликов.",
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Попробуйте другие вакансии.",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                    } else {
+                        Text(
+                            "Невозможно отправить отклик.",
+                            color = Color.White
+                        )
+                    }
                 }
             },
             containerColor = Color(0xFF1E1E2E),
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLimitDialog = false
-                        onNavigateToTariffs()
+                if (userPrice?.idPrices == 1 && userResponseCount >= 5) {
+                    Button(
+                        onClick = {
+                            showLimitDialog = false
+                            onNavigateToTariffs()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC))
+                    ) {
+                        Text("Перейти к тарифам", color = Color.White)
                     }
-                ) {
-                    Text("Перейти к тарифам", color = Color(0xFF5399BC))
+                } else {
+                    TextButton(
+                        onClick = { showLimitDialog = false }
+                    ) {
+                        Text("Понятно", color = Color(0xFF5399BC))
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLimitDialog = false }) {
-                    Text("Отмена", color = Color.White.copy(alpha = 0.6f))
+                if (userPrice?.idPrices != 1 || userResponseCount < 5) {
+                    OutlinedButton(
+                        onClick = { showLimitDialog = false },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("Закрыть", color = Color.White)
+                    }
+                } else {
+                    null
                 }
             }
+        )
+    }
+}
+
+@Composable
+fun InfoBadge(text: String) {
+    Box(
+        modifier = Modifier
+            .background(
+                Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            color = Color.White,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
         )
     }
 }

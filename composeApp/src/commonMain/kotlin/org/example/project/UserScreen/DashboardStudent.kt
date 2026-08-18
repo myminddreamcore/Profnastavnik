@@ -301,12 +301,14 @@ fun RecommendationCard(item: Listresponcies, onClick: () -> Unit) {
 }
 
 
-
 @Composable
 fun CustomBottomNavigation(
     currentScreen: String,
     onItemSelected: (String) -> Unit
 ) {
+    // Получаем роль пользователя
+    val userRole = CurrentUser.role ?: "student"
+
     Surface(
         modifier = Modifier
             .padding(16.dp)
@@ -336,21 +338,33 @@ fun CustomBottomNavigation(
                 if (currentScreen != "Поиск") onItemSelected("Поиск")
             }
 
-            NavigationItem(
-                "Профиль",
-                Icons.Default.Person,
-                currentScreen == "Профиль"
-            ) {
-                if (currentScreen != "Профиль") onItemSelected("Профиль")
+            if (userRole == "admin") {
+                NavigationItem(
+                    "Модерация",
+                    Icons.Default.Gavel,
+                    currentScreen == "Модерация"
+                ) {
+                    if (currentScreen != "Модерация") onItemSelected("Модерация")
+                }
+            }
+            if (userRole != "admin") {
+                NavigationItem(
+                    "Профиль",
+                    Icons.Default.Person,
+                    currentScreen == "Профиль"
+                ) {
+                    if (currentScreen != "Профиль") onItemSelected("Профиль")
+                }
+
+                NavigationItem(
+                    "Настройки",
+                    Icons.Default.Settings,
+                    currentScreen == "Настройки"
+                ) {
+                    if (currentScreen != "Настройки") onItemSelected("Настройки")
+                }
             }
 
-            NavigationItem(
-                "Настройки",
-                Icons.Default.Settings,
-                currentScreen == "Настройки"
-            ) {
-                if (currentScreen != "Настройки") onItemSelected("Настройки")
-            }
         }
     }
 }

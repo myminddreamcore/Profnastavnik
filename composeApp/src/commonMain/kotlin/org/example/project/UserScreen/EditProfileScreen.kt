@@ -126,22 +126,20 @@ fun EditProfileScreen(
     fun saveProfile() {
         scope.launch {
             try {
-                // Формируем ФИО обратно
                 val nameParts = fio.split(" ")
                 val surname = nameParts.getOrNull(0) ?: ""
                 val name = nameParts.getOrNull(1) ?: ""
                 val patronymic = nameParts.getOrNull(2) ?: ""
 
-                // Создаем объект для сохранения
                 val profileToSave = AllUserprofile(
                     student = Student(
                         idStudent = userProfile?.student!!.idStudent,
-                        nameStudent = name,
-                        surnameStudent = surname,
-                        patronymicStudent = patronymic,
-                        birthdayStudent = birthDate,
+                        nameStudent = if (name.isNotEmpty()) name else null,
+                        surnameStudent = if (surname.isNotEmpty()) surname else null,
+                        patronymicStudent = if (patronymic.isNotEmpty()) patronymic else null,
+                        birthdayStudent = if (birthDate.isNotEmpty()) birthDate else null,
                         courseStudent = course.toIntOrNull(),
-                        facultatyStudent = specialty,
+                        facultatyStudent = if (specialty.isNotEmpty()) specialty else null,
                         emailStudent = userProfile?.student!!.emailStudent,
                         universityStudent = selectedUniversity?.idUniversity
                     ),
