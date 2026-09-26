@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +34,8 @@ fun CompanyFeedbacksScreen(
     api: ApiClient,
     onBack: () -> Unit,
     onNavigateToUserProfile: (Int) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit
+    onNavigateToVacancyDetail: (Int) -> Unit,
+    onNavigateToCreateRequest: (Int, String?) -> Unit
 ) {
     var reviewsFromUsers by remember { mutableStateOf<List<FeedbacksUser>>(emptyList()) }
     var reviewsToUsers by remember { mutableStateOf<List<FeedbacksCompany>>(emptyList()) }
@@ -59,7 +59,6 @@ fun CompanyFeedbacksScreen(
             if (toUsers != null) {
                 reviewsToUsers = toUsers
 
-                // Загружаем имена пользователей для отзывов компании
                 val namesMap = mutableMapOf<Int, String>()
                 toUsers.forEach { review ->
                     review.idUser?.let { userId ->
@@ -149,7 +148,14 @@ fun CompanyFeedbacksScreen(
                         items(reviewsFromUsers) { review ->
                             ReviewFromUserCard(
                                 review = review,
-                                onViewProfile = { review.idUser?.let { onNavigateToUserProfile(it) } }
+                                onViewProfile = { review.idUser?.let { onNavigateToUserProfile(it) } },
+                                onViewVacancy = { review.idVacancy?.let { onNavigateToVacancyDetail(it) } },
+                                onComplain = {
+                                    onNavigateToCreateRequest(
+                                        review.idFeedbackUser ?: 0,
+                                        review.descriptionFeedbackUser
+                                    )
+                                }
                             )
                         }
                     }
@@ -183,6 +189,12 @@ fun CompanyFeedbacksScreen(
                                 onDelete = {
                                     selectedFeedbackId = review.idFeedbackCompany
                                     showDeleteDialog = true
+                                },
+                                onComplain = {
+                                    onNavigateToCreateRequest(
+                                        review.idFeedbackCompany ?: 0,
+                                        review.descriptionCompany
+                                    )
                                 }
                             )
                         }
@@ -245,7 +257,9 @@ fun CompanyFeedbacksScreen(
 @Composable
 fun ReviewFromUserCard(
     review: FeedbacksUser,
-    onViewProfile: () -> Unit
+    onViewProfile: () -> Unit,
+    onViewVacancy: () -> Unit,   // <-- ДОБАВЛЕНО
+    onComplain: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -273,17 +287,36 @@ fun ReviewFromUserCard(
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 12.sp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        review.dateFeedback ?: "",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp
+                    )
                 }
 
-                Button(
-                    onClick = onViewProfile,
-                    modifier = Modifier.height(32.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Профиль", color = Color.White, fontSize = 11.sp)
+                Row {
+                    IconButton(
+                        onClick = onComplain,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Report,
+                            contentDescription = "Пожаловаться",
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Button(
+                        onClick = onViewProfile,
+                        modifier = Modifier.height(32.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Профиль", color = Color.White, fontSize = 11.sp)
+                    }
                 }
             }
 
@@ -314,6 +347,21 @@ fun ReviewFromUserCard(
                     )
                 }
             }
+
+            // Кнопка "Вакансия"
+            Button(
+                onClick = onViewVacancy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC).copy(alpha = 0.8f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Work, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Перейти к вакансии", color = Color.White, fontSize = 13.sp)
+            }
         }
     }
 }
@@ -324,7 +372,8 @@ fun ReviewToUserCard(
     userName: String,
     onViewProfile: () -> Unit,
     onViewVacancy: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onComplain: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -339,7 +388,6 @@ fun ReviewToUserCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // ФИО пользователя - кликабельно для перехода в профиль
                 Text(
                     userName,
                     color = Color(0xFF5399BC),
@@ -348,18 +396,46 @@ fun ReviewToUserCard(
                     modifier = Modifier.clickable { onViewProfile() }
                 )
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        null,
-                        tint = Color(0xFFB71C1C),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row {
+                    IconButton(
+                        onClick = onComplain,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Report,
+                            contentDescription = "Пожаловаться",
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            null,
+                            tint = Color(0xFFB71C1C),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                review.dateFeedback ?: "",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                "Рейтинг: ${review.ratingStudent}/5",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 

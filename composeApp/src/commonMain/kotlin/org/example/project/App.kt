@@ -4,6 +4,7 @@ import MainScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import org.example.project.API.ApiClient
+import org.example.project.Admin.AdminRequestsScreen
 import org.example.project.Admin.AdminSearchScreen
 import org.example.project.Admin.DashboardAdmin
 import org.example.project.Admin.ModerationScreen
@@ -78,6 +79,10 @@ fun App() {
             "Модерация" -> {
                 navigationStack.clear()
                 navigationStack.add(34)
+            }
+            "Жалобы" -> {
+                navigationStack.clear()
+                navigationStack.add(38)
             }
             "Настройки" -> {
                 navigationStack.clear()
@@ -192,7 +197,7 @@ fun App() {
                     responseType = "archive"
                     navigateTo(4)
                 },
-                onNavigateToComplaints = { navigateTo(16) },
+                onNavigateToComplaints = { navigateTo(35) },
                 onNavigateToChats = { navigateTo(11) },
                 onNavigateToFeedbacks = { navigateTo(13) },
                 onNavigateToTariffs = { navigateTo(20) },
@@ -209,7 +214,6 @@ fun App() {
                 onSave = { goBack() }
             )
 
-            // ========== ОБЩИЕ ЭКРАНЫ ==========
             11 -> ChatsScreen(
                 api = api,
                 onBack = { goBack() },
@@ -255,6 +259,10 @@ fun App() {
                 onNavigateToVacancyDetail = { it ->
                     selectedVacancyId = it
                     navigateTo(5)
+                },
+                onNavigateToCreateRequest = { feedbackId, feedbackText ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(36)
                 }
             )
 
@@ -278,36 +286,11 @@ fun App() {
                 onBack = { goBack() }
             )
 
-            16 -> ComplaintsScreen(
-                api = api,
-                onBack = { goBack() },
-                onNavigateToComplaintDetail = { complaintId ->
-                    selectedComplaintId = complaintId
-                    navigateTo(17)
-                }
-            )
 
-            17 -> ComplaintDetailScreen(
-                api = api,
-                complaintId = selectedComplaintId,
-                onBack = { goBack() },
-                onNavigateToCompany = { companyId ->
-                    selectedCompanyId = companyId
-                    navigateTo(15)
-                },
-                onNavigateToVacancy = { vacancyId ->
-                    selectedVacancyId = vacancyId
-                    navigateTo(5)
-                }
-            )
 
-            18 -> AddComplaintScreen(
-                api = api,
-                vacancyId = selectedVacancyForAction,
-                companyId = selectedCompanyForAction,
-                onBack = { goBack() },
-                onSuccess = { goBack() }
-            )
+
+
+
 
             19 -> AddFeedbackScreen(
                 api = api,
@@ -323,7 +306,6 @@ fun App() {
                 onSuccess = { goBack() }
             )
 
-            // ========== КОМПАНИЯ ==========
             21 -> DashboardCompany(
                 api = api,
                 onNavigate = globalNavigate,
@@ -402,6 +384,7 @@ fun App() {
                 },
                 onNavigateToFeedbacks = { navigateTo(27) },
                 onNavigateToArchiveShip = { navigateTo(28) },
+                onNavigateToComplaint= { navigateTo(35) },
                 onLogout = {
                     userRole = "student"
                     navigationStack.clear()
@@ -425,6 +408,10 @@ fun App() {
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
+                },
+                onNavigateToCreateRequest = { feedbackId, feedbackText ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(36)
                 }
             )
 
@@ -493,7 +480,13 @@ fun App() {
                 onNavigateToCompanyProfile = { companyId ->
                     selectedCompanyId = companyId
                     navigateTo(15)
-                }
+                },
+                onNavigateToChats = {navigateTo(11)
+                },
+                onLogout = {navigateTo(0)
+                },
+                onToggleTheme = {navigateTo(0)
+                },
             )
 
             33 -> AdminSearchScreen(
@@ -514,6 +507,26 @@ fun App() {
                 onNavigateToFeedbackDetail = { feedbackId ->
                     selectedFeedbackId = feedbackId
                     navigateTo(14)
+                },
+                onNavigateToChat = { id, type ->
+                    val chat = Chat(
+                        idChat = 0,
+                        idUser = if (type == "user") id else null,
+                        textChat = "",
+                        statusChat = "",
+                        sendAtChat = null,
+                        idVacancy = null,
+                        idDirector = if (type == "company") id else null,
+                        emailAdmin = CurrentUser.email,
+                        senderChat = ""
+                    )
+                    selectedChat = ChatDTO(
+                        chat = chat,
+                        nameCompany = null,
+                        nameVacancy = null,
+                        fioUser = null
+                    )
+                    navigateTo(31)
                 }
             )
             34 -> ModerationScreen(
@@ -530,6 +543,56 @@ fun App() {
                 onNavigateToVacancyDetail = { vacancyId ->
                     selectedVacancyId = vacancyId
                     navigateTo(5)
+                },
+                onNavigateToFeedbackDetail = { feedbackId ->
+                    selectedFeedbackId = feedbackId
+                    navigateTo(14)
+                }
+            )
+
+
+
+
+            35 -> MyRequestsScreen(
+                api = api,
+                onBack = { goBack() },
+                userRole = userRole,
+                onNavigateToCreateDirectRequest = {
+                    selectedUserId = 0
+                    selectedCompanyId = 0
+                    navigateTo(37)
+                }
+            )
+
+            36 -> CreateRequestScreen(
+                api = api,
+                feedbackId = selectedFeedbackId,
+                feedbackText = null,
+                onBack = { goBack() },
+                onSuccess = { goBack() },
+                userRole = userRole
+            )
+
+
+            37 -> CreateDirectRequestScreen(
+                api = api,
+                targetType = if (selectedUserId > 0) "user" else "company",
+                targetId = if (selectedUserId > 0) selectedUserId else selectedCompanyId,
+                targetName = null,
+                userRole = userRole,
+                onBack = { goBack() },
+                onSuccess = { goBack() }
+            )
+            38 -> AdminRequestsScreen(
+                api = api,
+                onNavigate = globalNavigate,
+                onNavigateToUserProfile = { userId ->
+                    selectedUserId = userId
+                    navigateTo(22)
+                },
+                onNavigateToCompanyProfile = { companyId ->
+                    selectedCompanyId = companyId
+                    navigateTo(15)
                 },
                 onNavigateToFeedbackDetail = { feedbackId ->
                     selectedFeedbackId = feedbackId

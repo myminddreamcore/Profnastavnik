@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
+import org.example.project.API.MultiSelectFieldFromApi
 import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
 import org.example.project.Models.*
@@ -37,10 +38,16 @@ fun CreateVacancyScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Справочники
     var moneyTypes by remember { mutableStateOf<List<MoneyType>>(emptyList()) }
     var currencies by remember { mutableStateOf<List<Currency>>(emptyList()) }
+    var allSkills by remember { mutableStateOf<List<Skills>>(emptyList()) }
+    var allSferes by remember { mutableStateOf<List<Sferes>>(emptyList()) }
+    var allProfessions by remember { mutableStateOf<List<Proffesions>>(emptyList()) }
+    var allFormats by remember { mutableStateOf<List<Formats>>(emptyList()) }
     var isLoadingData by remember { mutableStateOf(true) }
 
+    // Основные поля
     var nameVacancy by remember { mutableStateOf("") }
     var descriptionVacancy by remember { mutableStateOf("") }
     var timeVacancy by remember { mutableStateOf("") }
@@ -51,14 +58,25 @@ fun CreateVacancyScreen(
     var selectedMoneyType by remember { mutableStateOf<MoneyType?>(null) }
     var selectedCurrency by remember { mutableStateOf<Currency?>(null) }
 
+    // Мультивыбор с автодополнением
+    var selectedSkills by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedSferes by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedProfessions by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // Одиночный выбор формата
+    var selectedFormat by remember { mutableStateOf<String?>(null) }
+
+    // Адрес
     var cityAdress by remember { mutableStateOf("") }
     var streetAdress by remember { mutableStateOf("") }
     var houseAdress by remember { mutableStateOf("") }
     var flatAdress by remember { mutableStateOf("") }
     var indexAdress by remember { mutableStateOf("") }
 
+    // Dropdown состояния
     var expandedMoney by remember { mutableStateOf(false) }
     var expandedCurrency by remember { mutableStateOf(false) }
+    var expandedFormat by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showSuccess by remember { mutableStateOf(false) }
@@ -83,15 +101,30 @@ fun CreateVacancyScreen(
 
         val companyId = CurrentUser.id ?: 0
 
+        // Загружаем справочники
         val money = api.getMoneyTypes()
         if (money != null) moneyTypes = money
 
         val currency = api.getCurrencies()
         if (currency != null) currencies = currency
 
+        val skills = api.getSkills()
+        if (skills != null) allSkills = skills
+
+        val sferes = api.getSferes()
+        if (sferes != null) allSferes = sferes
+
+        val professions = api.getProffesions()
+        if (professions != null) allProfessions = professions
+
+        val formats = api.getFormats()
+        if (formats != null) allFormats = formats
+
+        // Тариф
         val tariff = api.getCompanyTariff(companyId)
         companyPrice = tariff
 
+        // Существующие вакансии
         val director = Director(idDirector = companyId)
         val vacancies = api.getCompanyVacancies(director)
         if (vacancies != null) {
@@ -101,6 +134,12 @@ fun CreateVacancyScreen(
         isLoadingData = false
         isLoadingTariff = false
     }
+
+    // Списки названий для автодополнения
+    val skillNames = allSkills.map { it.nameSkill ?: "" }
+    val sfereNames = allSferes.map { it.nameSfere ?: "" }
+    val professionNames = allProfessions.map { it.nameProfession ?: "" }
+    val formatNames = allFormats.map { it.nameVacancyFormat ?: "" }
 
     fun canCreateVacancy(): Boolean {
         val tariffId = companyPrice?.idPrice ?: 1
@@ -142,14 +181,7 @@ fun CreateVacancyScreen(
             errorMessage = "Выберите тип оплаты"
             return
         }
-        if (selectedCurrency == null) {
-            errorMessage = "Выберите валюту"
-            return
-        }
-        if (zenStartVacancy.isBlank() || zenEndVacancy.isBlank()) {
-            errorMessage = "Введите диапазон зарплаты"
-            return
-        }
+
 
         scope.launch {
             isLoading = true
@@ -180,7 +212,15 @@ fun CreateVacancyScreen(
                 idVacancy = 0
             )
 
-            val dto = CreateVacancyDTO(vacancy, adress)
+            val dto = CreateVacancyDTO(
+                vacancy = vacancy,
+                adress = adress,
+                skills = if (selectedSkills.isNotEmpty()) selectedSkills else null,
+                sferes = if (selectedSferes.isNotEmpty()) selectedSferes else null,
+
+                format = selectedFormat
+            )
+
             val success = api.createVacancy(dto)
             isLoading = false
 
@@ -197,9 +237,7 @@ fun CreateVacancyScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Создать вакансию", color = Color.White)
-                },
+                title = { Text("Создать вакансию", color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = { onBack() }) {
                         Icon(Icons.Default.ArrowBack, null, tint = Color.White)
@@ -228,7 +266,7 @@ fun CreateVacancyScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Фиксированная информация о тарифе (НЕ СКРОЛЛИТСЯ)
+                    // Информация о тарифе
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -274,7 +312,7 @@ fun CreateVacancyScreen(
                         }
                     }
 
-                    // СКРОЛЛИМАЯ ЧАСТЬ
+                    // Скролл
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -294,9 +332,7 @@ fun CreateVacancyScreen(
                         OutlinedTextField(
                             value = descriptionVacancy,
                             onValueChange = { descriptionVacancy = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
                             label = { Text("Описание", color = Color.White.copy(alpha = 0.7f)) },
                             colors = textFieldColors()
                         )
@@ -323,6 +359,74 @@ fun CreateVacancyScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // ========== НАВЫКИ (АВТОДОПОЛНЕНИЕ) ==========
+                        MultiSelectFieldFromApi(
+                            label = "Навыки",
+                            options = skillNames,
+                            selectedOptionsNames = selectedSkills,
+                            onOptionsSelected = { newList -> selectedSkills = newList },
+                            placeholder = "Введите навык..."
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ========== СФЕРЫ (АВТОДОПОЛНЕНИЕ) ==========
+                        MultiSelectFieldFromApi(
+                            label = "Сферы деятельности",
+                            options = sfereNames,
+                            selectedOptionsNames = selectedSferes,
+                            onOptionsSelected = { newList -> selectedSferes = newList },
+                            placeholder = "Введите сферу..."
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // ========== ФОРМАТ (ОДИНОЧНЫЙ ВЫБОР) ==========
+                        Box {
+                            OutlinedTextField(
+                                value = selectedFormat ?: "",
+                                onValueChange = {},
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { expandedFormat = !expandedFormat },
+                                readOnly = true,
+                                label = { Text("Формат работы", color = Color.White.copy(alpha = 0.7f)) },
+                                trailingIcon = {
+                                    IconButton(onClick = { expandedFormat = !expandedFormat }) {
+                                        Icon(
+                                            if (expandedFormat) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                            null,
+                                            tint = Color.White
+                                        )
+                                    }
+                                },
+                                colors = textFieldColors()
+                            )
+
+                            DropdownMenu(
+                                expanded = expandedFormat,
+                                onDismissRequest = { expandedFormat = false },
+                                modifier = Modifier.background(Color(0xFF2D3243))
+                            ) {
+                                formatNames.forEach { format ->
+                                    DropdownMenuItem(
+                                        text = { Text(format, color = Color.White) },
+                                        onClick = {
+                                            selectedFormat = format
+                                            expandedFormat = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Тип оплаты
                         Box {
                             OutlinedTextField(
                                 value = selectedMoneyType?.nameMoneyType ?: "",
@@ -351,12 +455,7 @@ fun CreateVacancyScreen(
                             ) {
                                 moneyTypes.forEach { type ->
                                     DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                type.nameMoneyType ?: "",
-                                                color = Color.White
-                                            )
-                                        },
+                                        text = { Text(type.nameMoneyType ?: "", color = Color.White) },
                                         onClick = {
                                             selectedMoneyType = type
                                             expandedMoney = false
@@ -368,6 +467,7 @@ fun CreateVacancyScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Зарплата
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -390,6 +490,7 @@ fun CreateVacancyScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Валюта
                         Box {
                             OutlinedTextField(
                                 value = selectedCurrency?.nameCurrency ?: "",
@@ -418,12 +519,7 @@ fun CreateVacancyScreen(
                             ) {
                                 currencies.forEach { currency ->
                                     DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                currency.nameCurrency ?: "",
-                                                color = Color.White
-                                            )
-                                        },
+                                        text = { Text(currency.nameCurrency ?: "", color = Color.White) },
                                         onClick = {
                                             selectedCurrency = currency
                                             expandedCurrency = false
@@ -435,9 +531,7 @@ fun CreateVacancyScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(
                                 checked = hasMentor,
                                 onCheckedChange = { hasMentor = it },
@@ -453,12 +547,7 @@ fun CreateVacancyScreen(
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
 
-                        Text(
-                            "Адрес",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Адрес", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -515,11 +604,7 @@ fun CreateVacancyScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         if (errorMessage != null) {
-                            Text(
-                                errorMessage!!,
-                                color = Color.Red,
-                                fontSize = 12.sp
-                            )
+                            Text(errorMessage!!, color = Color.Red, fontSize = 12.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
@@ -530,9 +615,7 @@ fun CreateVacancyScreen(
                                 .fillMaxWidth()
                                 .height(56.dp)
                                 .clip(RoundedCornerShape(28.dp)),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Transparent
-                            )
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -555,12 +638,7 @@ fun CreateVacancyScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Center
                                     ) {
-                                        Icon(
-                                            Icons.Default.Add,
-                                            null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
-                                        )
+                                        Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             "Создать вакансию",
@@ -584,18 +662,11 @@ fun CreateVacancyScreen(
         AlertDialog(
             onDismissRequest = { showTariffLimitDialog = false },
             title = {
-                Text(
-                    "Лимит вакансий исчерпан",
-                    color = Color(0xFFFF9800),
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Лимит вакансий исчерпан", color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
             },
             text = {
                 Column {
-                    Text(
-                        "Вы достигли лимита вакансий в вашем тарифе.",
-                        color = Color.White
-                    )
+                    Text("Вы достигли лимита вакансий в вашем тарифе.", color = Color.White)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Перейдите на тариф Корпоративный для неограниченного количества вакансий!",

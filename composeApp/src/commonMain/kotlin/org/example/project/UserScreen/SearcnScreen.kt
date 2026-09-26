@@ -47,16 +47,22 @@ fun SearchScreen(
     var searchResults by remember { mutableStateOf<List<Listresponcies>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+
+    // Фильтры
     var selectedSkills by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedSpheres by remember { mutableStateOf<List<String>>(emptyList()) }
     var selectedFormats by remember { mutableStateOf<List<String>>(emptyList()) }
     var minSalary by remember { mutableStateOf("") }
     var maxSalary by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }  // <-- ФИЛЬТР ПО ГОРОДУ
     var hasMentor by remember { mutableStateOf(false) }
+
+    // Справочники
     var allSkills by remember { mutableStateOf<List<Skills>>(emptyList()) }
     var allSpheres by remember { mutableStateOf<List<Sferes>>(emptyList()) }
     var allFormats by remember { mutableStateOf<List<Formats>>(emptyList()) }
     var iduser by remember { mutableStateOf(0) }
+
     LaunchedEffect(Unit) {
         val user = Student(
             idStudent = CurrentUser.id ?: 0,
@@ -93,7 +99,8 @@ fun SearchScreen(
                 zenEnd = maxSalary.toIntOrNull(),
                 iduser = iduser,
                 user = if (hasMentor) true else null,
-                name = if (searchQuery.isNotBlank()) searchQuery else null
+                name = if (searchQuery.isNotBlank()) searchQuery else null,
+                city = if (city.isNotBlank()) city else null  // <-- ГОРОД
             )
 
             val results = api.getfilteredVacancy(filters)
@@ -109,6 +116,7 @@ fun SearchScreen(
         minSalary = ""
         maxSalary = ""
         hasMentor = false
+        city = ""  // <-- СБРОС ГОРОДА
     }
 
     Scaffold(
@@ -124,6 +132,7 @@ fun SearchScreen(
                 .padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Верхняя панель
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -153,6 +162,7 @@ fun SearchScreen(
                     }
                 }
 
+                // Поиск
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -193,6 +203,7 @@ fun SearchScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Результаты
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.White.copy(alpha = 0.12f),
@@ -243,6 +254,7 @@ fun SearchScreen(
         }
     }
 
+    // Диалог фильтров
     if (showFilters) {
         AlertDialog(
             onDismissRequest = { showFilters = false },
@@ -256,6 +268,7 @@ fun SearchScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 8.dp)
                 ) {
+                    // Навыки
                     MultiSelectFieldFromApi(
                         label = "Навыки",
                         options = skillNames,
@@ -268,6 +281,7 @@ fun SearchScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Сферы
                     MultiSelectFieldFromApi(
                         label = "Сферы деятельности",
                         options = sphereNames,
@@ -280,6 +294,7 @@ fun SearchScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Форматы
                     MultiSelectFieldFromApi(
                         label = "Формат работы",
                         options = formatNames,
@@ -292,7 +307,9 @@ fun SearchScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Зарплата
                     Text("Зарплата", color = Color.White, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -325,6 +342,34 @@ fun SearchScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // ========== ГОРОД ==========
+                    Text("Город", color = Color.White, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = city,
+                        onValueChange = { city = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Введите город...", color = Color.White.copy(alpha = 0.5f)) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = Color(0xFF5399BC)
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF5399BC),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // С наставником
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = hasMentor,

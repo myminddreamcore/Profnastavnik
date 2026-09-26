@@ -150,16 +150,17 @@ fun SettingsScreen(
                         onClick = { /* TODO */ }
                     )
                     SettingsButton(
+                        text = "Жалобы",
+                        icon = Icons.Default.CreditCard,
+                        onClick = onNavigateToComplaints
+                    )
+                    SettingsButton(
                         text = "Тарифы",
                         icon = Icons.Default.CreditCard,
                         onClick = onNavigateToTariffs
                     )
 
-                    SettingsButton(
-                        text = "Жалобы",
-                        icon = Icons.Default.Report,
-                        onClick = onNavigateToComplaints
-                    )
+
 
                     SettingsButton(
                         text = "Архив стажировок",
@@ -181,7 +182,14 @@ fun SettingsScreen(
                         onClick = { showLogoutDialog = true }
                     )
                 }
-
+                Spacer(modifier = Modifier.height(30.dp))
+                Text(
+                    text = "Для связи или проблем с приложением можете написать нам на почту: official.workship@mail.ru",
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }

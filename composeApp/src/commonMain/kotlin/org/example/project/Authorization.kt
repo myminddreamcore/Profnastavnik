@@ -223,7 +223,7 @@ fun LoginScreen(
                                                 CurrentUser.isAuthorized = true
                                                 onCompanySuccess()
                                             } else if (result.roleUser == "Администратор") {CurrentUser.role = "admin"
-
+                                                CurrentUser.email = result?.emailUser
                                                 onAdminSuccess()
                                             }
                                         } else {

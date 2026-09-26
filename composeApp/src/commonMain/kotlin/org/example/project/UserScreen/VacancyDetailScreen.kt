@@ -153,7 +153,6 @@ fun VacancyDetailScreen(
                 statusResponse = "Рассматривается",
                 idVacancy = vacancyId
             )
-
             val result = api.addResponse(response)
             isSending = false
 

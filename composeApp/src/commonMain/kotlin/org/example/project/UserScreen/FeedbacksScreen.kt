@@ -26,7 +26,6 @@ import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
 import org.example.project.Models.CurrentUser
 import org.example.project.Models.FeedbacksCompany
-import org.example.project.Models.FeedbacksUser
 import org.example.project.Models.FeedbacksUserDTO
 
 @Composable
@@ -34,11 +33,10 @@ fun FeedbacksScreen(
     api: ApiClient,
     onBack: () -> Unit,
     onNavigateToCompanyProfile: (Int) -> Unit,
-    onNavigateToVacancyDetail: (Int) -> Unit
+    onNavigateToVacancyDetail: (Int) -> Unit,
+    onNavigateToCreateRequest: (Int, String?) -> Unit
 ) {
-    // Отзывы о пользователе (от компаний)
     var reviewsFromCompanies by remember { mutableStateOf<List<FeedbacksCompany>>(emptyList()) }
-    // Отзывы от пользователя (о компаниях)
     var reviewsToCompanies by remember { mutableStateOf<List<FeedbacksUserDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -50,13 +48,11 @@ fun FeedbacksScreen(
             isLoading = true
             val userId = CurrentUser.id ?: 0
 
-            // Отзывы о пользователе (от компаний)
             val fromCompanies = api.getUserFeedbacksCompany(userId)
             if (fromCompanies != null) {
                 reviewsFromCompanies = fromCompanies
             }
 
-            // Отзывы от пользователя (о компаниях)
             val toCompanies = api.getUserFeedbacks(userId)
             if (toCompanies != null) {
                 reviewsToCompanies = toCompanies.filter { it.f?.statusFeedbackUser != "Удален" }
@@ -87,7 +83,6 @@ fun FeedbacksScreen(
             .background(Brush.verticalGradient(listOf(BgGradientStart, BgGradientEnd)))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя панель
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,7 +130,14 @@ fun FeedbacksScreen(
                         items(reviewsFromCompanies) { review ->
                             ReviewFromCompanyCard(
                                 review = review,
-                                onViewCompany = { review.idCompany?.let { onNavigateToCompanyProfile(it) } }
+                                onViewCompany = { review.idCompany?.let { onNavigateToCompanyProfile(it) } },
+                                onViewVacancy = { review.idVacancy?.let { onNavigateToVacancyDetail(it) } },
+                                onComplain = {
+                                    onNavigateToCreateRequest(
+                                        review.idFeedbackCompany ?: 0,
+                                        review.descriptionCompany
+                                    )
+                                }
                             )
                         }
                     }
@@ -167,6 +169,12 @@ fun FeedbacksScreen(
                                 onDelete = {
                                     selectedFeedbackId = review.f?.idFeedbackUser
                                     showDeleteDialog = true
+                                },
+                                onComplain = {
+                                    onNavigateToCreateRequest(
+                                        review.f?.idFeedbackUser ?: 0,
+                                        review.f?.descriptionFeedbackUser
+                                    )
                                 }
                             )
                         }
@@ -229,7 +237,9 @@ fun FeedbacksScreen(
 @Composable
 fun ReviewFromCompanyCard(
     review: FeedbacksCompany,
-    onViewCompany: () -> Unit
+    onViewCompany: () -> Unit,
+    onViewVacancy: () -> Unit,  // <-- ДОБАВЛЕНО
+    onComplain: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -244,7 +254,7 @@ fun ReviewFromCompanyCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                         "Компания",
+                        review.nameCompany ?: "Компания",
                         color = Color(0xFF5399BC),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -267,6 +277,24 @@ fun ReviewFromCompanyCard(
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 12.sp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        review.dateFeedback ?: "",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp
+                    )
+
+                    IconButton(
+                        onClick = onComplain,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Report,
+                            contentDescription = "Пожаловаться",
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -297,6 +325,21 @@ fun ReviewFromCompanyCard(
                     )
                 }
             }
+
+            // Кнопка "Перейти к вакансии"
+            Button(
+                onClick = onViewVacancy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5399BC).copy(alpha = 0.8f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Work, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Перейти к вакансии", color = Color.White, fontSize = 13.sp)
+            }
         }
     }
 }
@@ -306,7 +349,8 @@ fun ReviewToCompanyCard(
     review: FeedbacksUserDTO,
     onViewCompany: () -> Unit,
     onViewVacancy: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onComplain: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -321,7 +365,6 @@ fun ReviewToCompanyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Название компании - кликабельно для перехода в профиль
                 Text(
                     review.nameCompany ?: "Компания",
                     color = Color(0xFF5399BC),
@@ -330,22 +373,34 @@ fun ReviewToCompanyCard(
                     modifier = Modifier.clickable { onViewCompany() }
                 )
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        null,
-                        tint = Color(0xFFB71C1C),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row {
+                    IconButton(
+                        onClick = onComplain,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Report,
+                            contentDescription = "Пожаловаться",
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            null,
+                            tint = Color(0xFFB71C1C),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Название вакансии
             Text(
                 review.nameVacancy ?: "Вакансия",
                 color = Color.White.copy(alpha = 0.6f),
@@ -374,6 +429,12 @@ fun ReviewToCompanyCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "${review.f?.ratingFeedbackUser}/5",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    review.f?.dateFeedback ?: "",
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 12.sp
                 )

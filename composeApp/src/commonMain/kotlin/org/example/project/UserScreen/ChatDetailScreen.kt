@@ -46,7 +46,6 @@ fun ChatDetailScreen(
     var isSending by remember { mutableStateOf(false) }
     var isFirstLoad by remember { mutableStateOf(true) }
 
-    // Состояния для стажировки
     var internship by remember { mutableStateOf<Intership?>(null) }
     var isLoadingInternship by remember { mutableStateOf(false) }
     var isStartingInternship by remember { mutableStateOf(false) }
@@ -55,34 +54,39 @@ fun ChatDetailScreen(
     var internshipDays by remember { mutableStateOf(0) }
 
     val chat = chatDTO.chat
+    val userRole = CurrentUser.role ?: "student"
 
     val isAdminChat = chat.emailAdmin != null
-    val isCompanyChat = chat.idDirector != null && chat.emailAdmin == null
+    val isCompanyChat = chat.idDirector != null
 
-    val recipientId = if (isCompanyChat) chat.idDirector else null
-    val recipientEmail = if (isAdminChat) chat.emailAdmin else null
-
-    val displayName = when {
-        isAdminChat -> {
-            if (isCompany) {
-                chat.emailAdmin ?: "Администратор"
-            } else {
-                "Администратор"
-            }
-        }
-        isCompanyChat -> {
-            if (isCompany) {
-                chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
-            } else {
+    // ========== ОПРЕДЕЛЯЕМ ОТОБРАЖАЕМОЕ ИМЯ ==========
+    val displayName = when (userRole) {
+        "admin" -> {
+            if (isCompanyChat) {
                 chatDTO.nameCompany ?: chatDTO.nameVacancy ?: "Компания"
+            } else {
+                chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
             }
         }
-        else -> "Чат"
+        "company" -> {
+            if (isAdminChat) {
+                chatDTO.chat.emailAdmin ?: "Администратор"
+            } else {
+                chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Студент"
+            }
+        }
+        else -> { // student
+            if (isCompanyChat) {
+                chatDTO.nameCompany ?: chatDTO.nameVacancy ?: "Компания"
+            } else {
+                chatDTO.chat.emailAdmin ?: "Администратор"
+            }
+        }
     }
 
-    // Загрузка стажировки
+    // ========== ЗАГРУЗКА СТАЖИРОВКИ ==========
     fun loadInternship() {
-        if (!isCompany) return
+        if (userRole != "company") return
 
         scope.launch {
             isLoadingInternship = true
@@ -90,10 +94,9 @@ fun ChatDetailScreen(
             val companyId = CurrentUser.id ?: 0
             val vacancyId = chat.idVacancy ?: 0
 
-            if (userId != 0 && vacancyId != 0) {
+            if (userId > 0 && vacancyId > 0) {
                 val result = api.getUserIntership(userId, companyId, vacancyId)
                 internship = result
-                // Загружаем дни если стажировка идет
                 if (result?.statusIntership == "Идет") {
                     val days = api.getInternshipDays(result.idIntership)
                     if (days != null) {
@@ -105,7 +108,6 @@ fun ChatDetailScreen(
         }
     }
 
-    // Начать стажировку
     fun startInternship() {
         scope.launch {
             isStartingInternship = true
@@ -128,7 +130,6 @@ fun ChatDetailScreen(
             if (result != null) {
                 internship = result
                 showStartDialog = false
-                // Загружаем дни
                 val days = api.getInternshipDays(result.idIntership)
                 if (days != null) {
                     internshipDays = days
@@ -138,7 +139,6 @@ fun ChatDetailScreen(
         }
     }
 
-    // Завершить стажировку
     fun endInternship() {
         scope.launch {
             isEndingInternship = true
@@ -153,40 +153,62 @@ fun ChatDetailScreen(
         }
     }
 
+    // ========== ЗАГРУЗКА СООБЩЕНИЙ ==========
     fun loadMessages() {
         scope.launch {
             isLoading = true
 
-            val userId = CurrentUser.id ?: 0
+            val userId = if (CurrentUser.role == "student") {
+                CurrentUser.id ?: 0
+            } else {
+                chat.idUser ?: 0
+            }
+            val companyId = if (CurrentUser.role == "company") {
+                CurrentUser.id ?: 0
+            } else {
+                chat.idDirector ?: 0
+            }
             val vacancyId = chat.idVacancy ?: 0
 
-            val result = when {
-                isAdminChat && recipientEmail != null -> {
-                    if (isCompany) {
-                        val companyId = CurrentUser.id ?: 0
-                        api.getChatMessagesCompanyAdmin(companyId, recipientEmail)
+            val result = when (userRole) {
+                "admin" -> {
+                    if (isAdminChat && chat.emailAdmin != null) {
+                        if (isCompanyChat) {
+                            api.getChatMessagesCompanyAdmin(companyId, chat.emailAdmin!!)
+                        } else {
+                            api.getChatMessagesAdmin(userId, chat.emailAdmin!!)
+                        }
                     } else {
-                        api.getChatMessagesAdmin(userId, recipientEmail)
+                        null
                     }
                 }
-                isCompanyChat && recipientId != null -> {
-                    if (isCompany) {
-                        val studentId = chat.idUser ?: 0
-                        val companyId = CurrentUser.id ?: 0
-                        api.getChatMessagesCompany(studentId, companyId, vacancyId)
+                "company" -> {
+                    if (isAdminChat && chat.emailAdmin != null) {
+                        api.getChatMessagesCompanyAdmin(companyId, chat.emailAdmin!!)
+                    } else if (isCompanyChat) {
+                        api.getChatMessagesCompany(userId, companyId, vacancyId)
                     } else {
-                        api.getChatMessagesCompany(userId, recipientId, vacancyId)
+                        null
                     }
                 }
-                else -> null
+                else -> { // student
+                    if (isAdminChat && chat.emailAdmin != null) {
+                        api.getChatMessagesAdmin(userId, chat.emailAdmin!!)
+                    } else if (isCompanyChat) {
+                        val companyId = chat.idDirector ?: 0
+                        api.getChatMessagesCompany(userId, companyId, vacancyId)
+                    } else {
+                        null
+                    }
+                }
             }
 
             if (result != null) {
                 val unreadMessages = result.filter { msg ->
-                    val isFromOther = if (isCompany) {
-                        msg.chat.senderChat == "Стажер" || msg.chat.senderChat == "Админ"
-                    } else {
-                        msg.chat.senderChat == "Работодатель" || msg.chat.senderChat == "Админ"
+                    val isFromOther = when (userRole) {
+                        "company" -> msg.chat.senderChat == "Стажер" || msg.chat.senderChat == "Админ"
+                        "admin" -> msg.chat.senderChat == "Стажер" || msg.chat.senderChat == "Работодатель"
+                        else -> msg.chat.senderChat == "Работодатель" || msg.chat.senderChat == "Админ"
                     }
                     isFromOther && msg.chat.statusChat != "Прочитано"
                 }
@@ -224,23 +246,37 @@ fun ChatDetailScreen(
         startPolling()
     }
 
+    // ========== ОТПРАВКА СООБЩЕНИЯ ==========
     fun sendMessage() {
         if (inputText.isBlank() || isSending) return
 
         scope.launch {
             isSending = true
 
-            val userId = CurrentUser.id ?: 0
-            val sender = if (isCompany) "Работодатель" else "Стажер"
+            val userId = if (CurrentUser.role == "student") {
+                CurrentUser.id ?: null
+            } else {
+                chat.idUser ?: null
+            }
+            val companyId = if (CurrentUser.role == "company") {
+                CurrentUser.id ?: null
+            } else {
+                chat.idDirector ?: null
+            }
+            val sender = when (userRole) {
+                "company" -> "Работодатель"
+                "admin" -> "Админ"
+                else -> "Стажер"
+            }
 
             val newMessage = Chat(
                 idChat = 0,
-                idUser = if (!isCompany) userId else null,
+                idUser =  userId ,
                 textChat = inputText,
                 statusChat = "Отправлено",
                 sendAtChat = null,
                 idVacancy = chat.idVacancy,
-                idDirector = if (isCompany) userId else chat.idDirector,
+                idDirector = companyId,
                 emailAdmin = if (isAdminChat) chat.emailAdmin else null,
                 senderChat = sender
             )
@@ -256,23 +292,35 @@ fun ChatDetailScreen(
         }
     }
 
+    // ========== ОБРАБОТЧИК КЛИКА ПО ИМЕНИ ==========
+    fun handleNameClick() {
+        when (userRole) {
+            "admin" -> {
+                if (isCompanyChat && chat.idDirector != null && chat.idDirector!! > 0) {
+                    onNavigateToCompany(chat.idDirector!!)
+                } else if (chat.idUser != null && chat.idUser!! > 0) {
+                    onNavigateToUser(chat.idUser!!)
+                }
+            }
+            "company" -> {
+                if (chat.idUser != null && chat.idUser!! > 0) {
+                    onNavigateToUser(chat.idUser!!)
+                }
+            }
+            else -> { // student
+                if (isCompanyChat && chat.idDirector != null && chat.idDirector!! > 0) {
+                    onNavigateToCompany(chat.idDirector!!)
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column(
-                        modifier = Modifier.clickable {
-                            if (isCompanyChat && isAdminChat ) {
-
-                            }
-                            else if (isCompanyChat && chat.idUser != null && chat.idUser!=0 && isCompany==true) {
-                                onNavigateToUser(chat.idUser)
-                            }
-                            else if (isCompanyChat && recipientId != null && isCompany==false) {
-                                onNavigateToCompany(recipientId)
-                            }
-
-                        }
+                        modifier = Modifier.clickable { handleNameClick() }
                     ) {
                         Text(
                             displayName,
@@ -314,7 +362,8 @@ fun ChatDetailScreen(
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if (isCompany && !isAdminChat) {
+                    // Блок стажировки (только для компании)
+                    if (userRole == "company" && !isAdminChat) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -420,9 +469,9 @@ fun ChatDetailScreen(
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-
                     }
 
+                    // Список сообщений
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
@@ -432,10 +481,10 @@ fun ChatDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(messages.reversed()) { msg ->
-                            val isMe = if (isCompany) {
-                                msg.chat.senderChat == "Работодатель" || msg.chat.senderChat == "Администратор"
-                            } else {
-                                msg.chat.senderChat == "Стажер"
+                            val isMe = when (userRole) {
+                                "company" -> msg.chat.senderChat == "Работодатель"
+                                "admin" -> msg.chat.senderChat == "Админ"
+                                else -> msg.chat.senderChat == "Стажер"
                             }
 
                             MessageBubble(
@@ -445,6 +494,7 @@ fun ChatDetailScreen(
                         }
                     }
 
+                    // Поле ввода
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = Color.White.copy(alpha = 0.05f),
@@ -492,7 +542,6 @@ fun ChatDetailScreen(
         }
     }
 
-    // Диалог подтверждения начала стажировки
     if (showStartDialog) {
         AlertDialog(
             onDismissRequest = { showStartDialog = false },
@@ -546,7 +595,6 @@ fun ChatDetailScreen(
     }
 }
 
-
 @Composable
 fun MessageBubble(
     message: Chat,
@@ -579,6 +627,7 @@ fun MessageBubble(
                             "Работодатель" -> "Работодатель"
                             "Администратор" -> "Администратор"
                             "Стажер" -> "Стажер"
+                            "Админ" -> "Админ"
                             else -> ""
                         }
                         if (senderName.isNotEmpty()) {

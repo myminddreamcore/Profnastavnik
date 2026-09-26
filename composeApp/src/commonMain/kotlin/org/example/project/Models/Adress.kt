@@ -24,8 +24,3 @@ data class Adress(
     val indexAdress: Int? = null,
     val idVacancy: Int? = null
 )
-@Serializable
-data class CreateVacancyDTO(
-    val vacancy: Vacancy,
-    val adress: Adress
-)

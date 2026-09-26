@@ -517,7 +517,6 @@ fun ModerationVacancyCard(
         }
     }
 }
-
 @Composable
 fun ModerationFeedbackCompanyCard(
     feedback: ModerationFeedbackCompany,
@@ -532,12 +531,26 @@ fun ModerationFeedbackCompanyCard(
         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Отзыв о студенте",
-                color = Color(0xFFFFB74D),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Отзыв о студенте",
+                    color = Color(0xFFFFB74D),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                // ДАТА
+                if (!feedback.date.isNullOrBlank()) {
+                    Text(
+                        feedback.date,
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 11.sp
+                    )
+                }
+            }
             Text(
                 "Студент: ${feedback.studentName}",
                 color = Color.White,
@@ -583,6 +596,7 @@ fun ModerationFeedbackCompanyCard(
     }
 }
 
+// ModerationFeedbackUserCard
 @Composable
 fun ModerationFeedbackUserCard(
     feedback: ModerationFeedbackUser,
@@ -597,12 +611,26 @@ fun ModerationFeedbackUserCard(
         colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Отзыв о компании",
-                color = Color(0xFFFFB74D),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Отзыв о компании",
+                    color = Color(0xFFFFB74D),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                // ДАТА
+                if (!feedback.date.isNullOrBlank()) {
+                    Text(
+                        feedback.date,
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 11.sp
+                    )
+                }
+            }
             Text(
                 "Студент: ${feedback.studentName}",
                 color = Color.White,

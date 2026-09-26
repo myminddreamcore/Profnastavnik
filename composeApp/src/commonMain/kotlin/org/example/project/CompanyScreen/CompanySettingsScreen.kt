@@ -33,6 +33,7 @@ fun CompanySettingsScreen(
     onNavigate: (String) -> Unit,
     onNavigateToChats: () -> Unit,
     onNavigateToFeedbacks: () -> Unit,
+    onNavigateToComplaint: () -> Unit,
     onNavigateToTariffs: () -> Unit,
     onNavigateToArchive: () -> Unit,
     onNavigateToArchiveShip: () -> Unit,
@@ -141,7 +142,11 @@ fun CompanySettingsScreen(
                         icon = Icons.Default.Chat,
                         onClick = { /* TODO */ }
                     )
-
+                    SettingsButton(
+                        text = "Жалобы",
+                        icon = Icons.Default.CreditCard,
+                        onClick = onNavigateToComplaint
+                    )
                     SettingsButton(
                         text = "Тарифы",
                         icon = Icons.Default.CreditCard,
@@ -173,7 +178,14 @@ fun CompanySettingsScreen(
                         onClick = { showLogoutDialog = true }
                     )
                 }
-
+                Spacer(modifier = Modifier.height(30.dp))
+                Text(
+                    text = "Для связи или проблем с приложением можете написать нам на почту: official.workship@mail.ru",
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }

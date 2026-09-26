@@ -28,9 +28,11 @@ import org.example.project.UserScreen.CustomBottomNavigation
 fun DashboardAdmin(
     api: ApiClient,
     onNavigate: (String) -> Unit,
-    // НОВЫЕ КОЛБЭКИ ДЛЯ ПЕРЕХОДОВ
     onNavigateToStudentProfile: (Int) -> Unit,
-    onNavigateToCompanyProfile: (Int) -> Unit
+    onNavigateToCompanyProfile: (Int) -> Unit,
+    onNavigateToChats: () -> Unit,
+    onLogout: () -> Unit,
+    onToggleTheme: () -> Unit = {}
 ) {
     var topCompanies by remember { mutableStateOf<List<TopCompanyDTO>>(emptyList()) }
     var topStudents by remember { mutableStateOf<List<TopStudentAdminDTO>>(emptyList()) }
@@ -42,8 +44,9 @@ fun DashboardAdmin(
     var userChurnChart by remember { mutableStateOf<List<UserChurnChartDTO>>(emptyList()) }
     var successInternshipsChart by remember { mutableStateOf<List<SuccessInternshipChartDTO>>(emptyList()) }
     var stats by remember { mutableStateOf<DashboardStatsDTO?>(null) }
-
+    var messageCountt: Int? by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun loadData() {
@@ -110,7 +113,8 @@ fun DashboardAdmin(
                 stats = dashboardStats
                 println("DashboardStats: $dashboardStats")
             }
-
+            var messageCount = api.getCountAdminmessages(CurrentUser.email)
+            messageCountt = messageCount
             isLoading = false
         }
     }
@@ -146,24 +150,64 @@ fun DashboardAdmin(
                 ) {
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // Заголовок
-                    Text(
-                        "Панель администратора",
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("ПРОФНаставник", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Иконка луны (переключение темы)
+                            IconButton(
+                                onClick = onToggleTheme,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DarkMode,
+                                    contentDescription = "Темная тема",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            // Колокольчик (уведомления)
+                            Box(
+                                modifier = Modifier.clickable { onNavigateToChats() }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                messageCountt?.let {
+                                    if (it > 0) {
+                                        Surface(
+                                            color = Color(0xFFB71C1C),
+                                            shape = CircleShape,
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = (-2).dp, y = 2.dp)
+                                        ) {}
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Общая статистика
                     if (stats != null) {
                         StatsRow(stats!!)
                     }
 
                     Spacer(modifier = Modifier.height(30.dp))
 
-                    // Топ-3 компании
                     SectionHeader("Топ-3 компании")
                     HorizontalScrollRow {
                         if (topCompanies.isEmpty()) {
@@ -180,7 +224,6 @@ fun DashboardAdmin(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // Топ-3 студента
                     SectionHeader("Топ-3 стажера")
                     HorizontalScrollRow {
                         if (topStudents.isEmpty()) {
@@ -197,7 +240,6 @@ fun DashboardAdmin(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // Топ-3 университета
                     SectionHeader("Топ-3 университета")
                     HorizontalScrollRow {
                         if (topUniversities.isEmpty()) {
@@ -211,7 +253,6 @@ fun DashboardAdmin(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // Графики (без изменений)
                     SectionHeader("График оплат (все)")
                     if (paymentsChart.isEmpty()) {
                         Text("Нет данных", color = Color.White.copy(alpha = 0.6f))
@@ -316,17 +357,84 @@ fun DashboardAdmin(
                     }
 
                     Spacer(modifier = Modifier.height(30.dp))
+
+                    // ========== КНОПКА ВЫХОДА ==========
+                    Button(
+                        onClick = { showLogoutDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(bottom = 30.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFB71C1C).copy(alpha = 0.2f)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Logout,
+                            contentDescription = null,
+                            tint = Color(0xFFB71C1C),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Выйти из аккаунта",
+                            color = Color(0xFFB71C1C),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
     }
+
+    // Диалог подтверждения выхода
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    "Выход из аккаунта",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Вы уверены, что хотите выйти?",
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFB71C1C)
+                    )
+                ) {
+                    Text("Выйти", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Отмена", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E1E2E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White
+        )
+    }
 }
-
-// Остальные функции (SectionHeader, HorizontalScrollRow, StatsRow, StatItem, StatChip) без изменений...
-
-// ========== ИЗМЕНЕННЫЕ КАРТОЧКИ С ONCLICK ==========
-
-// Карточка компании (с кликом)
 @Composable
 fun TopCompanyCard(
     company: TopCompanyDTO,

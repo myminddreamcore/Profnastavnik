@@ -346,6 +346,13 @@ fun CustomBottomNavigation(
                 ) {
                     if (currentScreen != "Модерация") onItemSelected("Модерация")
                 }
+                NavigationItem(
+                    "Жалобы",
+                    Icons.Default.Gavel,
+                    currentScreen == "Жалобы"
+                ) {
+                    if (currentScreen != "Жалобы") onItemSelected("Жалобы")
+                }
             }
             if (userRole != "admin") {
                 NavigationItem(

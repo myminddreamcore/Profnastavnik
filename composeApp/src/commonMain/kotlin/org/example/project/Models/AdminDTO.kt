@@ -53,6 +53,7 @@ data class ModerationVacancy(
     val status: String
 )
 
+// ModerationFeedbackCompany (отзыв о студенте на модерации)
 @Serializable
 data class ModerationFeedbackCompany(
     val id: Int,
@@ -60,9 +61,11 @@ data class ModerationFeedbackCompany(
     val companyName: String,
     val description: String,
     val rating: Int,
-    val status: String
+    val status: String,
+    val date: String? = null  // <-- ДОБАВЛЕНО
 )
 
+// ModerationFeedbackUser (отзыв о компании на модерации)
 @Serializable
 data class ModerationFeedbackUser(
     val id: Int,
@@ -70,7 +73,8 @@ data class ModerationFeedbackUser(
     val companyName: String,
     val description: String,
     val rating: Int,
-    val status: String
+    val status: String,
+    val date: String? = null  // <-- ДОБАВЛЕНО
 )
 @Serializable
 data class AdminSearchFilters(

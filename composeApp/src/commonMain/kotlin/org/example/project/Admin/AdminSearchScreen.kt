@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,8 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,8 +26,7 @@ import kotlinx.coroutines.launch
 import org.example.project.API.ApiClient
 import org.example.project.BgGradientEnd
 import org.example.project.BgGradientStart
-import org.example.project.Models.AdminSearchFilters
-import org.example.project.Models.AdminSearchResult
+import org.example.project.Models.*
 import org.example.project.UserScreen.CustomBottomNavigation
 
 @Composable
@@ -36,7 +36,8 @@ fun AdminSearchScreen(
     onNavigateToUserProfile: (Int) -> Unit,
     onNavigateToCompanyProfile: (Int) -> Unit,
     onNavigateToVacancyDetail: (Int) -> Unit,
-    onNavigateToFeedbackDetail: (Int) -> Unit
+    onNavigateToFeedbackDetail: (Int) -> Unit,
+    onNavigateToChat: (Int, String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
@@ -71,7 +72,6 @@ fun AdminSearchScreen(
         }
     }
 
-    // Функция обновления статуса
     fun updateStatus(result: AdminSearchResult, newStatus: String) {
         scope.launch {
             val success = when (result.type) {
@@ -79,7 +79,6 @@ fun AdminSearchScreen(
                 "company" -> api.updateCompanyStatus(result.id, newStatus)
                 "vacancy" -> api.updateVacancyStatus(result.id, newStatus)
                 "feedback" -> {
-                    // Определяем какой отзыв
                     if (result.title.contains("студенте")) {
                         api.updateFeedbackCompanyStatus(result.id, newStatus)
                     } else {
@@ -90,7 +89,6 @@ fun AdminSearchScreen(
             }
 
             if (success) {
-                // Обновляем результат
                 val updatedResults = searchResults.map { item ->
                     if (item.id == result.id && item.type == result.type) {
                         item.copy(status = newStatus)
@@ -131,7 +129,6 @@ fun AdminSearchScreen(
                 .padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Верхняя панель
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -148,7 +145,6 @@ fun AdminSearchScreen(
                     Box(modifier = Modifier.size(40.dp))
                 }
 
-                // Строка поиска
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -181,7 +177,6 @@ fun AdminSearchScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Фильтры типов поиска
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -218,7 +213,6 @@ fun AdminSearchScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Результаты поиска
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.White.copy(alpha = 0.12f),
@@ -283,9 +277,13 @@ fun AdminSearchScreen(
                                     items(searchResults) { result ->
                                         AdminSearchResultCard(
                                             result = result,
+                                            api = api,
                                             onClick = { handleResultClick(result) },
                                             onUpdateStatus = { newStatus ->
                                                 updateStatus(result, newStatus)
+                                            },
+                                            onSendMessage = { id, type ->
+                                                onNavigateToChat(id, type)
                                             }
                                         )
                                     }
@@ -302,9 +300,62 @@ fun AdminSearchScreen(
 @Composable
 fun AdminSearchResultCard(
     result: AdminSearchResult,
+    api: ApiClient,
     onClick: () -> Unit,
-    onUpdateStatus: (String) -> Unit
+    onUpdateStatus: (String) -> Unit,
+    onSendMessage: (Int, String) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+
+    // Состояния для тарифа
+    var userTariffName by remember { mutableStateOf<String?>(null) }
+    var companyTariffName by remember { mutableStateOf<String?>(null) }
+    var userTariffId by remember { mutableStateOf<Int?>(null) }
+    var companyTariffId by remember { mutableStateOf<Int?>(null) }
+    var showTariffDialog by remember { mutableStateOf(false) }
+    var allUserTariffs by remember { mutableStateOf<List<PricesForUser>>(emptyList()) }
+    var allCompanyTariffs by remember { mutableStateOf<List<PricesForCompany>>(emptyList()) }
+    var isLoadingTariff by remember { mutableStateOf(false) }
+
+    // Загружаем тариф
+    LaunchedEffect(result.id, result.type) {
+        if (result.type == "user") {
+            isLoadingTariff = true
+            val userPrice = api.getUserPrice(result.id)
+            val allPrices = api.getAllPrices()
+
+            if (allPrices != null) {
+                allUserTariffs = allPrices
+                if (userPrice != null) {
+                    userTariffId = userPrice.idPrices
+                    val currentPrice = allPrices.find { it.idPrice == userPrice.idPrices }
+                    userTariffName = currentPrice?.namePrice ?: "Базовый"
+                } else {
+                    userTariffId = 1
+                    userTariffName = allPrices.find { it.idPrice == 1 }?.namePrice ?: "Базовый"
+                }
+            }
+            isLoadingTariff = false
+        } else if (result.type == "company") {
+            isLoadingTariff = true
+            val companyPrice = api.getCompanyTariff(result.id)
+            val allPrices = api.getAllCompanyTariffs()
+
+            if (allPrices != null) {
+                allCompanyTariffs = allPrices
+                if (companyPrice != null) {
+                    companyTariffId = companyPrice.idPrice
+                    val currentPrice = allPrices.find { it.id == companyPrice.idPrice }
+                    companyTariffName = currentPrice?.namePrice ?: "Базовый"
+                } else {
+                    companyTariffId = 1
+                    companyTariffName = allPrices.find { it.id == 1 }?.namePrice ?: "Базовый"
+                }
+            }
+            isLoadingTariff = false
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,7 +374,7 @@ fun AdminSearchResultCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Иконка в зависимости от типа
+                // Иконка
                 Surface(
                     modifier = Modifier.size(48.dp),
                     shape = RoundedCornerShape(12.dp),
@@ -353,9 +404,7 @@ fun AdminSearchResultCard(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         result.title,
                         color = Color.White,
@@ -375,18 +424,39 @@ fun AdminSearchResultCard(
                         )
                     }
 
-                    if (!result.description.isNullOrBlank()) {
-                        Text(
-                            result.description,
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 12.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    // ========== ТАРИФ ==========
+                    if (result.type == "user" || result.type == "company") {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CreditCard,
+                                contentDescription = null,
+                                tint = Color(0xFFFFB74D),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            if (isLoadingTariff) {
+                                Text(
+                                    "Загрузка...",
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 12.sp
+                                )
+                            } else {
+                                Text(
+                                    "Тариф: ${if (result.type == "user") userTariffName ?: "..." else companyTariffName ?: "..."}",
+                                    color = Color(0xFFFFB74D),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
 
-                    // Текущий статус
+                    // Статус
                     if (!result.status.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -445,16 +515,27 @@ fun AdminSearchResultCard(
                 }
             }
 
-            // Кнопки действий
             Spacer(modifier = Modifier.height(12.dp))
 
+            // ========== КНОПКИ ==========
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 when (result.type) {
                     "user" -> {
-                        // Для пользователей: Активен / Удален
+                        StatusButton(
+                            label = "Тариф",
+                            color = Color(0xFFFFB74D),
+                            icon = Icons.Default.CreditCard,
+                            onClick = { showTariffDialog = true }
+                        )
+                        StatusButton(
+                            label = "Написать",
+                            color = Color(0xFF5399BC),
+                            icon = Icons.Default.Chat,
+                            onClick = { onSendMessage(result.id, "user") }
+                        )
                         if (result.status != "Активен") {
                             StatusButton(
                                 label = "Активен",
@@ -470,8 +551,35 @@ fun AdminSearchResultCard(
                             )
                         }
                     }
+                    "company" -> {
+                        StatusButton(
+                            label = "Тариф",
+                            color = Color(0xFFFFB74D),
+                            icon = Icons.Default.CreditCard,
+                            onClick = { showTariffDialog = true }
+                        )
+                        StatusButton(
+                            label = "Написать",
+                            color = Color(0xFF5399BC),
+                            icon = Icons.Default.Chat,
+                            onClick = { onSendMessage(result.id, "company") }
+                        )
+                        if (result.status != "Активен") {
+                            StatusButton(
+                                label = "Активен",
+                                color = Color(0xFF4CAF50),
+                                onClick = { onUpdateStatus("Активен") }
+                            )
+                        }
+                        if (result.status != "Удален") {
+                            StatusButton(
+                                label = "Удален",
+                                color = Color(0xFFB71C1C),
+                                onClick = { onUpdateStatus("Удален") }
+                            )
+                        }
+                    }
                     "vacancy" -> {
-                        // Для вакансий: Активна / Архив
                         if (result.status != "Активна") {
                             StatusButton(
                                 label = "Активна",
@@ -488,7 +596,6 @@ fun AdminSearchResultCard(
                         }
                     }
                     "feedback" -> {
-                        // Для отзывов: Одобрен / Удален
                         val isAboutStudent = result.title.contains("студенте")
                         val approvedLabel = if (isAboutStudent) "Одобрено" else "Одобрен"
                         val deletedLabel = if (isAboutStudent) "Удалено" else "Удален"
@@ -508,26 +615,171 @@ fun AdminSearchResultCard(
                             )
                         }
                     }
-                    "company" -> {
-                        // Для компаний: Активен / Удален
-                        if (result.status != "Активен") {
-                            StatusButton(
-                                label = "Активен",
-                                color = Color(0xFF4CAF50),
-                                onClick = { onUpdateStatus("Активен") }
-                            )
-                        }
-                        if (result.status != "Удален") {
-                            StatusButton(
-                                label = "Удален",
-                                color = Color(0xFFB71C1C),
-                                onClick = { onUpdateStatus("Удален") }
-                            )
-                        }
-                    }
                 }
             }
         }
+    }
+
+    // ========== ДИАЛОГ СМЕНЫ ТАРИФА ==========
+    if (showTariffDialog) {
+        AlertDialog(
+            onDismissRequest = { showTariffDialog = false },
+            title = {
+                Text(
+                    "Смена тарифа",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        "Текущий тариф: ${if (result.type == "user") userTariffName ?: "..." else companyTariffName ?: "..."}",
+                        color = Color(0xFFFFB74D),
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Выберите новый тариф:",
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (result.type == "user") {
+                        allUserTariffs.forEach { tariff ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        scope.launch {
+                                            val newPrice = UserPrice(
+                                                id = 0,
+                                                idUser = result.id,
+                                                idPrices = tariff.idPrice
+                                            )
+                                            val success = api.addNewUserPrice(newPrice)
+                                            if (success != null) {
+                                                userTariffName = tariff.namePrice
+                                                userTariffId = tariff.idPrice
+                                                showTariffDialog = false
+                                            }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (userTariffId == tariff.idPrice) {
+                                        Color(0xFF4CAF50).copy(alpha = 0.2f)
+                                    } else {
+                                        Color.White.copy(alpha = 0.1f)
+                                    }
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            tariff.namePrice ?: "Тариф",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            "${tariff.costPrice ?: 0} ₽",
+                                            color = Color(0xFFFFB74D),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    if (userTariffId == tariff.idPrice) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            null,
+                                            tint = Color(0xFF4CAF50)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        allCompanyTariffs.forEach { tariff ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable {
+                                        scope.launch {
+                                            val newPrice = CompanyPrice(
+                                                id = 0,
+                                                idCompany = result.id,
+                                                idPrice = tariff.id
+                                            )
+                                            val success = api.addNewCompanyPrice(newPrice)
+                                            if (success != null) {
+                                                companyTariffName = tariff.namePrice
+                                                companyTariffId = tariff.id
+                                                showTariffDialog = false
+                                            }
+                                        }
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (companyTariffId == tariff.id) {
+                                        Color(0xFF4CAF50).copy(alpha = 0.2f)
+                                    } else {
+                                        Color.White.copy(alpha = 0.1f)
+                                    }
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            tariff.namePrice ?: "Тариф",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            "${tariff.cost ?: 0} ₽",
+                                            color = Color(0xFFFFB74D),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    if (companyTariffId == tariff.id) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            null,
+                                            tint = Color(0xFF4CAF50)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTariffDialog = false }) {
+                    Text("Закрыть", color = Color(0xFF5399BC))
+                }
+            },
+            containerColor = Color(0xFF1E1E2E)
+        )
     }
 }
 
@@ -535,17 +787,26 @@ fun AdminSearchResultCard(
 fun StatusButton(
     label: String,
     color: Color,
+    icon: ImageVector? = null,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier
-            .height(36.dp),
+        modifier = Modifier.height(36.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = color.copy(alpha = 0.2f)
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        }
         Text(
             label,
             color = color,

@@ -4,13 +4,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class FeedbacksUser(
-    val idFeedbackUser: Int = 0,
-    val idUser: Int? = null,
+    val idFeedbackUser: Int,
     val idCompany: Int? = null,
-    val descriptionFeedbackUser: String? = null,
-    val ratingFeedbackUser: Int? = null,
+    val idUser: Int? = null,
     val idVacancy: Int? = null,
-    val statusFeedbackUser: String? = null
+    val ratingFeedbackUser: Int? = null,
+    val descriptionFeedbackUser: String? = null,
+    val statusFeedbackUser: String? = null,
+    val dateFeedback: String? = null,
+    val nameStudent: String? = null,
+    val nameCompany: String? = null
 )
 @Serializable
 data class FeedbacksUserDTO(

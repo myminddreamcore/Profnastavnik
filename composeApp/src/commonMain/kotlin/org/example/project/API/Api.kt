@@ -1,6 +1,5 @@
 package org.example.project.API
 import io.ktor.client.*
-import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.contentType
@@ -10,33 +9,25 @@ import org.example.project.Models.Listresponcies
 import org.example.project.Models.Student
 import org.example.project.Models.User
 import org.example.project.Models.UserVacancies
-import org.example.project.Models.Vacancy
 import io.ktor.client.call.body;
 import io.ktor.client.statement.bodyAsText
-import kotlinx.serialization.builtins.ListSerializer
 import org.example.project.Models.AllUserprofile
 import org.example.project.Models.CardVacancy
 import org.example.project.Models.Proffesions
 import org.example.project.Models.Skills
 import org.example.project.Models.University
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.decodeToImageBitmap
 import io.ktor.http.ContentType
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.IO
 import org.example.project.Models.AdminSearchFilters
 import org.example.project.Models.AdminSearchResult
-import org.example.project.Models.Adress
 import org.example.project.Models.Chat
 import org.example.project.Models.ChatDTO
 import org.example.project.Models.CompanyPaymentChartDTO
 import org.example.project.Models.CompanyPrice
-import org.example.project.Models.Complaint
-import org.example.project.Models.ComplaintDTO
+import org.example.project.Models.CreateRequestCompany
+import org.example.project.Models.CreateRequestUser
 import org.example.project.Models.CreateVacancyDTO
 import org.example.project.Models.Currency
+import org.example.project.Models.CurrentUser
 import org.example.project.Models.DashboardStatsDTO
 import org.example.project.Models.Director
 import org.example.project.Models.DirectorDTO
@@ -53,6 +44,8 @@ import org.example.project.Models.PaymentChartDTO
 import org.example.project.Models.PricesForCompany
 import org.example.project.Models.PricesForUser
 import org.example.project.Models.PriorityResponseDTO
+import org.example.project.Models.RequestsCompany
+import org.example.project.Models.RequestsUser
 import org.example.project.Models.ResponciesDTO
 import org.example.project.Models.Response
 import org.example.project.Models.Sferes
@@ -981,45 +974,8 @@ class ApiClient {
             null
         }
     }
-    suspend fun getUserComplaints(userId: Int): List<ComplaintDTO>? {
-        return try {
-            val url = "${BASE_URL}Complaint/GetAll/${userId}"
-            println(url)
-            val response = client.get(url)
-            println(response)
-            if (response.status.value in 200..299) {
-                val jsonString = response.bodyAsText()
-                Json.decodeFromString<List<ComplaintDTO>>(jsonString)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-    suspend fun addComplaint(complaint: Complaint): Complaint? {
-        return try {
-            val url = "${BASE_URL}Complaint/AddComplaint"
-            println(url)
-            val response = client.post(url) {
-                contentType(ContentType.Application.Json)
-                setBody(complaint)
-            }
-            println(response)
-            if (response.status.value in 200..299) {
-                val jsonString = response.bodyAsText()
-                Json.decodeFromString<Complaint>(jsonString)
-            } else {
-                val error = response.bodyAsText()
-                println("Error: $error")
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
+
+
     suspend fun deleteFeedback(feedbackId: Int): Boolean {
         return try {
             val url = "${BASE_URL}FeedbacksUser/DeleteFeedbackUser/${feedbackId}"
@@ -1143,23 +1099,7 @@ class ApiClient {
             null
         }
     }
-    suspend fun getComplaintById(complaintId: Int): ComplaintDTO? {
-        return try {
-            val url = "${BASE_URL}Complaint/GetComplaint/${complaintId}"
-            println(url)
-            val response = client.get(url)
-            println(response)
-            if (response.status.value in 200..299) {
-                val jsonString = response.bodyAsText()
-                Json.decodeFromString<ComplaintDTO>(jsonString)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
+
     suspend fun saveUserProfile(profile: AllUserprofile): Boolean {
         return try {
             val url = "${BASE_URL}User/SaveUserProfile"
@@ -1180,6 +1120,199 @@ class ApiClient {
             response.status.value in 200..299
         } catch (e: Exception) {
             println("Exception: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Создать жалобу на пользователя (без отзыва)
+    suspend fun createDirectUserRequest(
+        targetUserId: Int,
+        description: String
+    ): Boolean {
+        return try {
+            val url = "${BASE_URL}Request/CreateDirectUserRequest"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    mapOf(
+                        "idStudent" to (CurrentUser.id ?: 0),
+                        "targetUserId" to targetUserId,
+                        "descriptionRequest" to description
+                    )
+                )
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+
+    // Получить отзыв о компании (FeedbacksUser) по ID
+    suspend fun getUserFeedbackById(feedbackId: Int): FeedbacksUser? {
+        return try {
+            val url = "${BASE_URL}FeedbacksUser/GetUserFeedback/${feedbackId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<FeedbacksUser>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Создать жалобу на компанию (без отзыва)
+    suspend fun createDirectCompanyRequest(
+        targetCompanyId: Int,
+        description: String
+    ): Boolean {
+        return try {
+            val url = "${BASE_URL}Request/CreateDirectCompanyRequest"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(
+                    mapOf(
+                        "idCompany" to (CurrentUser.id ?: 0),
+                        "targetCompanyId" to targetCompanyId,
+                        "descriptionRequset" to description
+                    )
+                )
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Получить жалобы пользователя
+    suspend fun getUserRequests(userId: Int): List<RequestsUser>? {
+        return try {
+            val url = "${BASE_URL}Request/GetUserRequests/${userId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<RequestsUser>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Получить жалобы компании
+    suspend fun getCompanyRequests(companyId: Int): List<RequestsCompany>? {
+        return try {
+            val url = "${BASE_URL}Request/GetCompanyRequests/${companyId}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<RequestsCompany>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // Создать жалобу от пользователя
+    suspend fun createUserRequest(request: CreateRequestUser): Boolean {
+        return try {
+            val url = "${BASE_URL}Request/CreateUserRequest"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Создать жалобу от компании
+    suspend fun createCompanyRequest(request: CreateRequestCompany): Boolean {
+        return try {
+            val url = "${BASE_URL}Request/CreateCompanyRequest"
+            println(url)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+    suspend fun getAllUserRequests(): List<RequestsUser>? {
+        return try {
+            val url = "${BASE_URL}Request/GetAllUserRequests"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<RequestsUser>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getAllCompanyRequests(): List<RequestsCompany>? {
+        return try {
+            val url = "${BASE_URL}Request/GetAllCompanyRequests"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<RequestsCompany>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+
+    suspend fun updateRequestStatus(requestId: Int, status: String, type: String): Boolean {
+        return try {
+            val url = "${BASE_URL}Request/UpdateRequestStatus/${requestId}/${status}/${type}"
+            println(url)
+            val response = client.put(url)
+            println(response)
+            response.status.value in 200..299
+        } catch (e: Exception) {
             e.printStackTrace()
             false
         }
@@ -1278,23 +1411,6 @@ class ApiClient {
             if (response.status.value in 200..299) {
                 val jsonString = response.bodyAsText()
                 Json.decodeFromString<List<Currency>>(jsonString)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-    suspend fun getResponsesByCompany(companyId: Int): List<Response>? {
-        return try {
-            val url = "${BASE_URL}Responces/GetResponsesByCompany/${companyId}"
-            println(url)
-            val response = client.get(url)
-            println(response)
-            if (response.status.value in 200..299) {
-                val jsonString = response.bodyAsText()
-                Json.decodeFromString<List<Response>>(jsonString)
             } else {
                 null
             }
@@ -1563,6 +1679,22 @@ class ApiClient {
             null
         }
     }
+    suspend fun getCountAdminmessages(email: String?): Int? {
+        return try {
+            val url = "${BASE_URL}Admin/GetAdminMessages/${email}"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                response.body<Int>()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     suspend fun getCountCompanymessages(user: Director): Int? {
         return try {
             val url = "${BASE_URL}Company/GetCompanyMessages/${user.idDirector}"
@@ -1653,6 +1785,23 @@ class ApiClient {
     suspend fun getUserChats(userId: Int): List<ChatDTO>? {
         return try {
             val url = "${BASE_URL}User/GetUserChats/$userId"
+            println(url)
+            val response = client.get(url)
+            println(response)
+            if (response.status.value in 200..299) {
+                val jsonString = response.bodyAsText()
+                Json.decodeFromString<List<ChatDTO>>(jsonString)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+    suspend fun getAdminChats(email: String?): List<ChatDTO>? {
+        return try {
+            val url = "${BASE_URL}Admin/GetAdminChats/$email"
             println(url)
             val response = client.get(url)
             println(response)

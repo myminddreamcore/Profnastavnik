@@ -37,9 +37,12 @@ fun ChatsScreen(
 
     LaunchedEffect(Unit) {
         val userId = CurrentUser.id ?: 0
-        val result = if (isCompany) {
+        val result = if (CurrentUser.role=="company") {
             api.getCompanyChats(userId)
-        } else {
+        }
+        else if (CurrentUser.role=="admin") {
+            api.getAdminChats(CurrentUser.email)
+        }else {
             api.getUserChats(userId)
         }
         if (result != null) {
@@ -122,23 +125,34 @@ fun ChatCard(
     val chat = chatDTO.chat
 
     // Определяем имя в зависимости от роли
-    val name: String = if (isCompany) {
+    val name: String = if (CurrentUser.role=="company") {
         // Компания видит ФИО студента или email админа
         if (chat.idUser == null) {
             // Если idUser null - это чат с админом
-            chat.emailAdmin ?: "Администратор"
+            "Администратор"
         } else {
             chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
         }
-    } else {
+    }
+    else if (CurrentUser.role=="admin") {
+        // Компания видит ФИО студента или email админа
+        if (chat.idUser == null) {
+            chatDTO.nameCompany ?: chatDTO.nameVacancy?: "Компания" ?: "Чат"
+        } else {
+            chatDTO.fioUser ?: chatDTO.nameVacancy ?: "Пользователь"
+        }
+    }else {
         // Студент видит название компании или вакансии или email админа
-        chatDTO.nameCompany ?: chatDTO.nameVacancy ?: chat.emailAdmin ?: "Чат"
+        chatDTO.nameCompany ?: chatDTO.nameVacancy ?: "Администратор" ?: "Чат"
     }
 
-    val isFromEmployer = chat.senderChat == "Работодатель" || chat.senderChat == "Администратор"
+    val isFromEmployer = chat.senderChat == "Работодатель"
+    val isFromAdmin =  chat.senderChat == "Админ"
     val isFromStudent = chat.senderChat == "Стажер"
-    val isFromMe = if (isCompany) {
+    val isFromMe = if (CurrentUser.role=="company") {
         isFromEmployer
+    } else if (CurrentUser.role=="admin") {
+        isFromAdmin
     } else {
         isFromStudent
     }
